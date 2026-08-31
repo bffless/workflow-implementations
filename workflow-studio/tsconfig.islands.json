@@ -1,0 +1,36 @@
+{
+  /* Islands run in a sandboxed `<iframe srcdoc>` in a real browser — DOM + React JSX.
+     The Vite config that builds them (`vite.islands.config.ts`) is Node-side tooling and
+     is checked separately under `tsconfig.node.json`, so no `"node"` types leak in here —
+     an `islands/**` module should never type-check against `process`/`Buffer`/`node:*`. */
+  "compilerOptions": {
+    "target": "es2023",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "esnext",
+    "types": ["vite/client"],
+    "skipLibCheck": true,
+
+    /* Bundler mode — also how `studio/lib/*` etc. resolve through the workspace
+       dependency's `package.json` "exports" (apps/studio/package.json). */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "jsx": "react-jsx",
+
+    /* Linting */
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  /* `vendor` is here so Vite resolves the frozen Studio copies to THIS project's
+     compiler options when it transforms them for the island bundles (tsconfck matches a
+     file to a referenced project by `include`; an unmatched file falls back to defaults,
+     which emit class fields differently — caught by the M4 Task 3 byte-comparability
+     gate). In `bffless/apps` the same files matched `apps/studio/tsconfig.app.json`,
+     whose transform-relevant options are identical to these. */
+  "include": ["islands", "vendor"]
+}

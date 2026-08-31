@@ -1,0 +1,74 @@
+name: Deploy workflow-studio
+
+# Publishes workflow-studio/ to the harness project as the `workflow-studio`
+# implementation: lint + index the workflow, sync the rule set under
+# /api/workflow-studio/ (with the generated /w/workflow-studio/* forwarder), upload the
+# bundle to the alias and attach the set to the harness alias — all of it inside
+# `bffless/publish-workflow@v1`. Ported from bffless/apps
+# .github/workflows/deploy-workflow-studio.yml; the apps/studio seam path filters are
+# dropped — the Studio libs are frozen under workflow-studio/vendor/studio (M4
+# Decision 3), so this package has no external build inputs.
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [main]
+    paths:
+      - 'workflow-studio/**'
+      - '.github/workflows/deploy-workflow-studio.yml'
+
+concurrency: { group: deploy-workflow-studio, cancel-in-progress: false }
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20', cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+
+      # Type-check, build the islands and the six script modules, and write
+      # dist/.bffless/workflows/index.json (`workflow index` comes from the published
+      # @bffless/workflow-lint — no workspace build step here, unlike bffless/apps).
+      - run: pnpm --filter ./workflow-studio run stage
+
+      # No `target-url`: since v1.2.0 the harness forwards /w/workflow-studio/* to this
+      # alias IN-PROCESS on the CE backend, so the implementation needs no domain of its
+      # own (workflow-studio/bffless/README.md → "Domain is OPTIONAL"). The action
+      # re-runs `workflow index` over the same `path`, which rewrites the index.json the
+      # stage step wrote — with the commit SHA filled in.
+      - uses: bffless/publish-workflow@v1
+        with:
+          alias: workflow-studio
+          name: Studio
+          # Kept in step with `DESCRIPTION` in workflow-studio/scripts/stage.mjs by
+          # hand — nothing enforces it. THIS value is the one that ships: the action re-runs
+          # `workflow index` over the staged bundle and overwrites the stager's.
+          description: 'The reference port of Studio: long screen recordings become a cut-first short in your own recorded voice, plus a companion blog post and a cover image.'
+          repository: bffless/workflow
+          api-url: ${{ vars.BFFLESS_URL }}
+          api-key: ${{ secrets.BFFLESS_API_KEY }}
+          path: workflow-studio/dist
+          workflows: workflow-studio/.bffless/workflows
+          rules: workflow-studio/.bffless/proxy-rules/workflow-studio
+
+      # A green publish doesn't prove the right bundle was published — assert it
+      # (needs @bffless/workflow-lint >= 1.0.1; the same guard deploy-hello.yml carries).
+      - name: Assert the published bundle's impl matches the alias
+        env:
+          EXPECTED_IMPL: workflow-studio
+        run: |
+          node -e "
+            const fs = require('node:fs');
+            const idx = JSON.parse(fs.readFileSync('workflow-studio/dist/.bffless/workflows/index.json', 'utf8'));
+            const expected = process.env.EXPECTED_IMPL;
+            if (idx.impl !== expected) {
+              console.error('::error::published bundle impl ' + JSON.stringify(idx.impl) + ' != alias ' + JSON.stringify(expected));
+              process.exit(1);
+            }
+          "
