@@ -1,0 +1,16 @@
+# dependencies
+node_modules
+.pnpm-store/
+
+# builds
+dist
+*.tsbuildinfo
+
+# test / coverage artifacts
+coverage
+playwright-report
+test-results
+
+# local scratch
+*.local
+.env

@@ -1,0 +1,36 @@
+name: CI
+on:
+  pull_request: {}
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Task 2 (move hello in) wires `node scripts/check-identity.mjs` here as
+      # the FIRST step after checkout: it asserts, for every
+      # `*/.bffless/workflow.json`, that the `alias` matches the package's
+      # deploy yml `alias:` input.
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20', cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - name: Per-package lint / stage / build / test
+        run: |
+          set -euo pipefail
+          found=0
+          for dir in */; do
+            pkg="${dir%/}"
+            [ -f "$pkg/package.json" ] || continue
+            found=1
+            echo "::group::$pkg"
+            pnpm --filter "./$pkg" run --if-present lint
+            pnpm --filter "./$pkg" run --if-present stage
+            pnpm --filter "./$pkg" run --if-present build
+            pnpm --filter "./$pkg" run --if-present test:run
+            echo "::endgroup::"
+          done
+          [ "$found" = 1 ] || echo "No packages yet — nothing to check."
+      - name: Rules validate + test
+        run: |
+          pnpm run rules:validate
+          pnpm run rules:test
