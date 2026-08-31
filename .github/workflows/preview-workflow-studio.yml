@@ -1,0 +1,66 @@
+name: Preview workflow-studio
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+    paths:
+      - 'workflow-studio/**'
+      - '.github/workflows/preview-workflow-studio.yml'
+
+concurrency:
+  # Flow-style `{ group: preview-${{ ... }} }` is genuinely ambiguous YAML (a
+  # `{{` inside a flow mapping) — block style, as in preview-hello.yml.
+  group: preview-workflow-studio-${{ github.event.number }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20', cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      # The bundle must say which implementation it is (needs @bffless/workflow-lint >= 1.0.1).
+      - run: "pnpm --filter ./workflow-studio run stage --impl workflow-studio-pr-${{ github.event.number }} --name 'Studio (PR #${{ github.event.number }})'"
+      - uses: bffless/publish-workflow@v1
+        with:
+          alias: workflow-studio-pr-${{ github.event.number }}
+          name: "Studio (PR #${{ github.event.number }})"
+          description: 'The reference port of Studio: long screen recordings become a cut-first short in your own recorded voice, plus a companion blog post and a cover image.'
+          repository: bffless/workflow
+          harness-alias: workflow
+          path: workflow-studio/dist
+          workflows: workflow-studio/.bffless/workflows
+          rules: workflow-studio/.bffless/proxy-rules/workflow-studio
+          api-url: ${{ vars.BFFLESS_URL }}
+          api-key: ${{ secrets.BFFLESS_API_KEY }}
+      - name: Assert the published bundle's impl matches the alias
+        env:
+          EXPECTED_IMPL: workflow-studio-pr-${{ github.event.number }}
+        run: |
+          node -e "
+            const fs = require('node:fs');
+            const idx = JSON.parse(fs.readFileSync('workflow-studio/dist/.bffless/workflows/index.json', 'utf8'));
+            const expected = process.env.EXPECTED_IMPL;
+            if (idx.impl !== expected) {
+              console.error('::error::published bundle impl ' + JSON.stringify(idx.impl) + ' != alias ' + JSON.stringify(expected));
+              process.exit(1);
+            }
+          "
+
+  teardown:
+    if: github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: bffless/publish-workflow@v1
+        with:
+          mode: teardown
+          alias: workflow-studio-pr-${{ github.event.number }}
+          repository: bffless/workflow
+          harness-alias: workflow
+          api-url: ${{ vars.BFFLESS_URL }}
+          api-key: ${{ secrets.BFFLESS_API_KEY }}
