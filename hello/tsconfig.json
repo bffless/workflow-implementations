@@ -1,0 +1,39 @@
+{
+  /* The whole repo's own sources: the two islands, the script step module,
+     and the Vite config that bundles the islands. `scripts/build.mjs` is
+     excluded — it is plain Node ESM, not part of what gets published.
+
+     `pnpm check` runs this once (`tsc -p tsconfig.json`), then
+     `node scripts/build.mjs --check` — which runs the same `tsc` invocation
+     again as part of its own build (matching `stage-hello.mjs`'s pattern of
+     type-checking right before the thing that publishes runs), so a type
+     error in an island or the script fails a plain `pnpm check` too. */
+  "compilerOptions": {
+    "target": "es2023",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "module": "esnext",
+    "types": ["vite/client", "node"],
+    "skipLibCheck": true,
+
+    /* JavaScript — the `script` step module (scripts/poster-card.js) is
+       plain JS with a JSDoc `@type` import of `@bffless/workflow-script`. */
+    "allowJs": true,
+    "checkJs": true,
+
+    /* Bundler mode */
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+
+    /* Linting */
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": ["islands", "scripts", "vite.islands.config.ts"],
+  "exclude": ["scripts/build.mjs", "dist", "node_modules"]
+}
