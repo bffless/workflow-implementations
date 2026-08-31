@@ -7,14 +7,14 @@
     "node": ">=20"
   },
   "scripts": {
-    "hello:lint": "pnpm --filter ./hello run --if-present lint",
-    "hello:stage": "pnpm --filter ./hello run --if-present stage",
-    "hello:build": "pnpm --filter ./hello run --if-present build",
-    "hello:test": "pnpm --filter ./hello run --if-present test:run",
-    "workflow-studio:lint": "pnpm --filter ./workflow-studio run --if-present lint",
-    "workflow-studio:stage": "pnpm --filter ./workflow-studio run --if-present stage",
-    "workflow-studio:build": "pnpm --filter ./workflow-studio run --if-present build",
-    "workflow-studio:test": "pnpm --filter ./workflow-studio run --if-present test:run",
+    "hello:lint": "pnpm --filter ./workflows/hello run --if-present lint",
+    "hello:stage": "pnpm --filter ./workflows/hello run --if-present stage",
+    "hello:build": "pnpm --filter ./workflows/hello run --if-present build",
+    "hello:test": "pnpm --filter ./workflows/hello run --if-present test:run",
+    "workflow-studio:lint": "pnpm --filter ./workflows/workflow-studio run --if-present lint",
+    "workflow-studio:stage": "pnpm --filter ./workflows/workflow-studio run --if-present stage",
+    "workflow-studio:build": "pnpm --filter ./workflows/workflow-studio run --if-present build",
+    "workflow-studio:test": "pnpm --filter ./workflows/workflow-studio run --if-present test:run",
     "rules:validate": "pnpm -r run --if-present rules:validate",
     "rules:test": "pnpm -r run --if-present rules:test"
   }

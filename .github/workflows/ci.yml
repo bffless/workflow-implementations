@@ -6,7 +6,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      # First step: for every `*/.bffless/workflow.json`, the `alias` must
+      # First step: for every `workflows/*/.bffless/workflow.json`, the `alias` must
       # match the package's deploy yml `alias:` input (#420 identity file).
       - run: node scripts/check-identity.mjs
       - uses: pnpm/action-setup@v4
@@ -17,7 +17,7 @@ jobs:
         run: |
           set -euo pipefail
           found=0
-          for dir in */; do
+          for dir in workflows/*/; do
             pkg="${dir%/}"
             [ -f "$pkg/package.json" ] || continue
             found=1

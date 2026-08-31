@@ -1,6 +1,6 @@
 # workflow-implementations
 
-The one home for implementations of the [Workflow harness](https://github.com/bffless/apps/tree/main/apps/workflow) (`bffless/apps` → `apps/workflow`). Each top-level package here is a workflow **implementation**: a bundle of workflow YAML, proxy rules, scripts and islands that publishes into the harness's BFFless project (`bffless/workflow`) under its own alias via [`bffless/publish-workflow@v1`](https://github.com/bffless/publish-workflow). The harness is the app; implementations are content published into its project — one harness : many implementations.
+The one home for implementations of the [Workflow harness](https://github.com/bffless/apps/tree/main/apps/workflow) (`bffless/apps` → `apps/workflow`). Each package under `workflows/` is a workflow **implementation**: a bundle of workflow YAML, proxy rules, scripts and islands that publishes into the harness's BFFless project (`bffless/workflow`) under its own alias via [`bffless/publish-workflow@v1`](https://github.com/bffless/publish-workflow). The harness is the app; implementations are content published into its project — one harness : many implementations.
 
 Implementations are **not** catalog apps. Per the ruling recorded on [bffless/apps#420](https://github.com/bffless/apps/issues/420) (Non-goals):
 
@@ -9,14 +9,15 @@ Implementations are **not** catalog apps. Per the ruling recorded on [bffless/ap
 ## Layout
 
 ```
-pnpm-workspace.yaml     # packages: ['*'] (vendor/ trees excluded)
+pnpm-workspace.yaml     # packages: ['workflows/*'] (vendor/ trees excluded)
 package.json            # private root; scripts: <impl>:lint/stage/build/test, rules:validate, rules:test
 .github/workflows/
   ci.yml                # per-package lint/stage/build/test:run (--if-present) + rules:validate/test on PR
   deploy-<impl>.yml     # publish-workflow@v1 → alias <impl> on push to main
   preview-<impl>.yml    # <impl>-pr-<n> previews + teardown on PR close
-<impl>/                 # one directory per implementation (hello, workflow-studio, …)
-  .bffless/workflow.json  # identity: { "alias": "<impl>", "harness": "workflow" }
+workflows/
+  <impl>/               # one directory per implementation (hello, workflow-studio, …)
+    .bffless/workflow.json  # identity: { "alias": "<impl>", "harness": "workflow" }
 ```
 
 ## CI / deploy configuration

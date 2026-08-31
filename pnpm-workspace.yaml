@@ -1,5 +1,5 @@
 packages:
-  - '*'
-  # Frozen third-party/vendored code (e.g. workflow-studio/vendor/studio) is
+  - 'workflows/*'
+  # Frozen third-party/vendored code (e.g. workflows/workflow-studio/vendor/studio) is
   # never a workspace package.
   - '!**/vendor/**'

@@ -4,7 +4,7 @@ on:
   pull_request:
     types: [opened, synchronize, reopened, closed]
     paths:
-      - 'workflow-studio/**'
+      - 'workflows/workflow-studio/**'
       - '.github/workflows/preview-workflow-studio.yml'
 
 concurrency:
@@ -24,7 +24,7 @@ jobs:
         with: { node-version: '20', cache: pnpm }
       - run: pnpm install --frozen-lockfile
       # The bundle must say which implementation it is (needs @bffless/workflow-lint >= 1.0.1).
-      - run: "pnpm --filter ./workflow-studio run stage --impl workflow-studio-pr-${{ github.event.number }} --name 'Studio (PR #${{ github.event.number }})'"
+      - run: "pnpm --filter ./workflows/workflow-studio run stage --impl workflow-studio-pr-${{ github.event.number }} --name 'Studio (PR #${{ github.event.number }})'"
       - uses: bffless/publish-workflow@v1
         with:
           alias: workflow-studio-pr-${{ github.event.number }}
@@ -32,9 +32,9 @@ jobs:
           description: 'The reference port of Studio: long screen recordings become a cut-first short in your own recorded voice, plus a companion blog post and a cover image.'
           repository: bffless/workflow
           harness-alias: workflow
-          path: workflow-studio/dist
-          workflows: workflow-studio/.bffless/workflows
-          rules: workflow-studio/.bffless/proxy-rules/workflow-studio
+          path: workflows/workflow-studio/dist
+          workflows: workflows/workflow-studio/.bffless/workflows
+          rules: workflows/workflow-studio/.bffless/proxy-rules/workflow-studio
           api-url: ${{ vars.BFFLESS_URL }}
           api-key: ${{ secrets.BFFLESS_API_KEY }}
       - name: Assert the published bundle's impl matches the alias
@@ -43,7 +43,7 @@ jobs:
         run: |
           node -e "
             const fs = require('node:fs');
-            const idx = JSON.parse(fs.readFileSync('workflow-studio/dist/.bffless/workflows/index.json', 'utf8'));
+            const idx = JSON.parse(fs.readFileSync('workflows/workflow-studio/dist/.bffless/workflows/index.json', 'utf8'));
             const expected = process.env.EXPECTED_IMPL;
             if (idx.impl !== expected) {
               console.error('::error::published bundle impl ' + JSON.stringify(idx.impl) + ' != alias ' + JSON.stringify(expected));

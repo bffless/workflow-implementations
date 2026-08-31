@@ -8,7 +8,7 @@ importers:
 
   .: {}
 
-  hello:
+  workflows/hello:
     dependencies:
       '@modelcontextprotocol/ext-apps':
         specifier: ^1.7.5
@@ -42,7 +42,7 @@ importers:
         specifier: ^4.1.7
         version: 4.1.11(@types/node@24.13.3)(jsdom@29.1.1)(vite@8.0.16(@types/node@24.13.3)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.0))
 
-  workflow-studio:
+  workflows/workflow-studio:
     dependencies:
       '@modelcontextprotocol/ext-apps':
         specifier: ^1.7.5
