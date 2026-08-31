@@ -6,10 +6,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      # Task 2 (move hello in) wires `node scripts/check-identity.mjs` here as
-      # the FIRST step after checkout: it asserts, for every
-      # `*/.bffless/workflow.json`, that the `alias` matches the package's
-      # deploy yml `alias:` input.
+      # First step: for every `*/.bffless/workflow.json`, the `alias` must
+      # match the package's deploy yml `alias:` input (#420 identity file).
+      - run: node scripts/check-identity.mjs
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with: { node-version: '20', cache: pnpm }

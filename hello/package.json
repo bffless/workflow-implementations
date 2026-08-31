@@ -6,7 +6,10 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "check": "tsc -p tsconfig.json && node scripts/build.mjs --check",
-    "test": "vitest run"
+    "test": "vitest run",
+    "lint": "pnpm run check",
+    "test:run": "vitest run",
+    "rules:validate": "npx --yes bffless@0.3.3 rules validate .bffless/proxy-rules/hello"
   },
   "dependencies": {
     "@modelcontextprotocol/ext-apps": "^1.7.5",
