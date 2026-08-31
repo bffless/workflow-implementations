@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Line viewer</title>
+    <style>
+      :root { color-scheme: light dark; }
+      html, body { margin: 0; }
+      body {
+        font: 13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace;
+        padding: 10px;
+        background: transparent;
+      }
+      pre { margin: 0; white-space: pre-wrap; word-break: break-word; }
+      img { max-width: 100%; display: block; }
+      /* `display: block` above outranks the UA `[hidden] { display: none }`
+         (equal specificity, later in source order) — restate it explicitly so
+         hiding the element via the `hidden` attribute actually hides it. */
+      img[hidden] { display: none; }
+      .error { color: #b91c1c; margin: 8px 0 0; white-space: pre-wrap; }
+      @media (prefers-color-scheme: dark) {
+        .error { color: #fca5a5; }
+      }
+    </style>
+  </head>
+  <body>
+    <pre data-testid="viewer-value">…</pre>
+    <img data-testid="viewer-image" hidden />
+    <p class="error" data-testid="island-sign-error"></p>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

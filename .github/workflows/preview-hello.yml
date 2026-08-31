@@ -1,0 +1,66 @@
+name: Preview hello
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+    paths:
+      - 'hello/**'
+      - '.github/workflows/preview-hello.yml'
+
+concurrency:
+  # Flow-style `{ group: preview-${{ ... }} }` is genuinely ambiguous YAML (a
+  # `{{` inside a flow mapping) — block style, as in the source repo.
+  group: preview-hello-${{ github.event.number }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20', cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      # The bundle must say which implementation it is (needs @bffless/workflow-lint >= 1.0.1).
+      - run: "pnpm --filter ./hello run build --impl hello-pr-${{ github.event.number }} --name 'Hello (PR #${{ github.event.number }})'"
+      - uses: bffless/publish-workflow@v1
+        with:
+          alias: hello-pr-${{ github.event.number }}
+          name: "Hello (PR #${{ github.event.number }})"
+          description: 'M2 test implementation: hello (echo, slow job + poll, fail-on-purpose) and an interactive island round-trip; two islands (pick-line, line-viewer); analyze.'
+          repository: bffless/workflow
+          harness-alias: workflow
+          path: hello/dist
+          workflows: hello/.bffless/workflows
+          rules: hello/.bffless/proxy-rules/hello
+          api-url: ${{ vars.BFFLESS_URL }}
+          api-key: ${{ secrets.BFFLESS_API_KEY }}
+      - name: Assert the published bundle's impl matches the alias
+        env:
+          EXPECTED_IMPL: hello-pr-${{ github.event.number }}
+        run: |
+          node -e "
+            const fs = require('node:fs');
+            const idx = JSON.parse(fs.readFileSync('hello/dist/.bffless/workflows/index.json', 'utf8'));
+            const expected = process.env.EXPECTED_IMPL;
+            if (idx.impl !== expected) {
+              console.error('::error::published bundle impl ' + JSON.stringify(idx.impl) + ' != alias ' + JSON.stringify(expected));
+              process.exit(1);
+            }
+          "
+
+  teardown:
+    if: github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: bffless/publish-workflow@v1
+        with:
+          mode: teardown
+          alias: hello-pr-${{ github.event.number }}
+          repository: bffless/workflow
+          harness-alias: workflow
+          api-url: ${{ vars.BFFLESS_URL }}
+          api-key: ${{ secrets.BFFLESS_API_KEY }}
