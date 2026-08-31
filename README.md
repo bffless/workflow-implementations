@@ -24,7 +24,7 @@ package.json            # private root; scripts: <impl>:lint/stage/build/test, r
 The deploy and preview workflows read (already set on this repo — record here, never in YAML):
 
 - **Actions secret `BFFLESS_API_KEY`** — contributor-role API key on the `bffless/workflow` project (same key material `bffless/apps` holds as `BFFLESS_WORKFLOW_API_KEY`).
-- **Actions variable `BFFLESS_URL`** — the BFFless instance URL (`https://j5s.dev`).
+- **Actions variable `BFFLESS_URL`** — the BFFless instance URL (`https://admin.j5s.dev`).
 
 A merge to `main` is a live deploy: each implementation's alias + rule set republish via `publish-workflow`. PRs publish `<impl>-pr-<n>` preview aliases, torn down on PR close. Aliases, rule-set names and `/api/<impl>/…` / `/w/<impl>/…` prefixes never change here — they are the implementation's identity.
 
