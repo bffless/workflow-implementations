@@ -23,10 +23,11 @@ own design record is the M3 plan under
 `.superpowers/sdd/2026-08-27-workflow-m3-publish-headless-studio/` (the `R###` markers in
 the comments here are its rulings — cite them the same way when you add one).
 
-`apps/studio` is the other source of truth: this app is a PORT, so where a prompt, a
-constant or a piece of arithmetic came from Studio, it is Studio's — verbatim, and the
-fixtures assert it. Change Studio's, not the copy, unless the harness genuinely forces a
-deviation (and then say so in a comment, with the ruling).
+`apps/studio` was the ORIGIN of this app, not its source of truth: the prompts, constants
+and arithmetic were copied from Studio when the port was made and have been this repo's own
+ever since. Edit them here (and the fixtures that assert them) without touching Studio;
+Studio is not expected to follow. The one thing still pinned to Studio is the skills copy
+(see "Skills" below).
 
 ## Reusing Studio
 

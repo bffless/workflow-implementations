@@ -2,7 +2,7 @@ targetUrl: pipeline
 timeout: 120000
 pipeline:
   name: Master director (async enqueue + poll)
-  description: "POST { timed, sheets, durations, sources, direction } -> ENQUEUE a job (kind 'scenes') and return { jobId, status: 'pending' }; the slow Gemini call + parse run in postSteps and write the row to done/error. Result { synopsis, scenes } is polled via GET job?id=. Ported from apps/studio /api/scenes: the prompt and system instruction are verbatim, prep builds the combined transcript from the per-source `timed` strings, re-stamping each line's [m:ss] label onto the ONE GLOBAL clock the director reasons on (offsets from `durations`) rather than shifting words as Studio did, and parse additionally maps every scene back to its source in LOCAL seconds (director.ts toScenes)."
+  description: "POST { timed, sheets, durations, sources, direction } -> ENQUEUE a job (kind 'scenes') and return { jobId, status: 'pending' }; the slow Gemini call + parse run in postSteps and write the row to done/error. Result { synopsis, scenes } is polled via GET job?id=. Ported from apps/studio /api/scenes. The system instruction carries every standing rule (inputs, edit model, direction precedence, output shape) and the user prompt leads with the recording length and the creator's direction BEFORE the transcript (the original Studio copy buried both after it). prep builds the combined transcript from the per-source `timed` strings, re-stamping each line's [m:ss] label onto the ONE GLOBAL clock the director reasons on (offsets from `durations`) rather than shifting words as Studio did, and parse additionally maps every scene back to its source in LOCAL seconds (director.ts toScenes)."
   steps:
     - id: prep
       name: prep
