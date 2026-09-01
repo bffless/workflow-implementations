@@ -158,10 +158,10 @@ function handler({ request, deployment }) {
     out['path' + i] = i < flat.length ? storagePrefix + flat[i] : ''
   }
 
-  // The prompt pair deviates from Studio's director.ts on purpose (no ruling number -
-  // requested 2026-09-01): Studio put the creator's direction, the "attached images are
-  // contact sheets" note and the "produce STRICT JSON" close at the very END of the user
-  // prompt, after the whole transcript, where a long recording buried them. Here every
+  // Prompt layout (2026-09-01): the original copy from Studio put the creator's direction,
+  // the "attached images are contact sheets" note and the "produce STRICT JSON" close at
+  // the very END of the user prompt, after the whole transcript, where a long recording
+  // buried them. Now every
   // standing instruction lives in the SYSTEM instruction (static, so it is identical for
   // every run and the fixtures assert one copy), the user prompt leads with the two
   // per-run facts the model must plan around (length, direction) BEFORE the transcript,
