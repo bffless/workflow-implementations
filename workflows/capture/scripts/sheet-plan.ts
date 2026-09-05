@@ -56,7 +56,6 @@ export default async function sheetPlan(ctx: ScriptContext): Promise<Record<stri
 
   const times = planTimes(duration, interval)
   const stills = times.length
-  const sheets = Math.ceil(stills / PER_SHEET)
 
   if (stills === 0) {
     ctx.annotate({
@@ -72,6 +71,8 @@ export default async function sheetPlan(ctx: ScriptContext): Promise<Record<stri
     times: slice,
     labels: labels.slice(i * MAX_STILLS_PER_JOB, i * MAX_STILLS_PER_JOB + slice.length),
   }))
+  // per batch — each capture request tiles its own stills, so a short final batch still costs a sheet
+  const sheets = batches.reduce((n, b) => n + Math.ceil(b.times.length / PER_SHEET), 0)
 
   if (stills > WARN_STILLS) {
     const mb = Math.round(sheets * SHEET_MB_ESTIMATE)

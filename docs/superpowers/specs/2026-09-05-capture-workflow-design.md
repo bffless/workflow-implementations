@@ -233,7 +233,7 @@ Documented in `workflows/capture/README.md`:
 | Layer | How |
 | --- | --- |
 | `lib/clock.ts` | `clockLabel` m:ss / h:mm:ss; `chunk` splits by size, never empty for non-empty input. |
-| `sheet-plan.ts` | 0 s → one empty batch + warning; 60 s @ 5 → 12 stills in one batch, labels parallel; 1200 s @ 1 → 1200 stills in 6 batches of 200, `sheets` 100, >120 warning names stills/sheets/MB; 2 s @ 5 → one still at 1.0; 1200 s @ 100 → 12 stills. |
+| `sheet-plan.ts` | 0 s → one empty batch + warning; 60 s @ 5 → 12 stills in one batch, labels parallel; 1200 s @ 1 → 1200 stills in 6 batches of 200, `sheets` 102 (17 per batch), >120 warning names stills/sheets/MB; 2 s @ 5 → one still at 1.0; 1200 s @ 100 → 12 stills. |
 | `bundle.ts` | fake ctx with two sheet refs → `unzipSync` the Blob and assert the five entries, manifest fields, transcript header/quote, null-sheets branch. |
 | `build.test.ts` | each built script is one self-contained ES module. |
 | Rules | `bffless rules validate` + `bffless rules test` (the copied `.fn.test.yaml`). |

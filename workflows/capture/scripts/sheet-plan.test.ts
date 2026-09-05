@@ -25,8 +25,17 @@ describe('sheet-plan', () => {
     expect(batches).toHaveLength(6)
     expect(batches.every((b) => b.times.length === 200 && b.labels.length === 200)).toBe(true)
     expect(batches[5].times.at(-1)).toBe(1199.5)
-    expect(out.sheets).toBe(100)
-    expect(annotations).toEqual([expect.objectContaining({ level: 'warning', message: expect.stringMatching(/1200 stills.*100 sheets.*240 MB/) })])
+    expect(out.sheets).toBe(102)
+    expect(annotations).toEqual([expect.objectContaining({ level: 'warning', message: expect.stringMatching(/1200 stills.*102 sheets.*245 MB/) })])
+  })
+
+  it('counts a sheet per batch, not one global ceiling, when the last batch is short', async () => {
+    const { ctx } = fakeCtx({ duration: 102, interval: 0.5 })
+    const out = await sheetPlan(ctx)
+    const batches = batchesOf(out)
+    expect(out.stills).toBe(204)
+    expect(batches.map((b) => b.times.length)).toEqual([200, 4])
+    expect(out.sheets).toBe(18)
   })
 
   it('gives a recording shorter than one interval a single midpoint still', async () => {
