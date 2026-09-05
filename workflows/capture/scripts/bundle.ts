@@ -15,11 +15,18 @@
  * come back; a returned `File` becomes the `zip` output — the harness uploads it. `sheets`
  * / `times` / `cols` arrive null when the sheet step was `if:`-skipped (D9): the bundle
  * still ships, with a warning in the manifest and on the step card.
+ *
+ * `sheets` / `times` / `cols` arrive as one entry PER MATRIX LEG (the `sheets` job fans one
+ * `video/contact-sheet` call per ≤200-still batch, spec 01: a list output collects into a
+ * list of lists); a skipped leg is `null`. They are flattened in leg order here, so sheet
+ * numbering runs across batches. D10: the zip embeds the sheets only while their total size
+ * stays ≤ `EMBED_CAP_BYTES` — the archive is built in Worker memory — otherwise the manifest
+ * lists each sheet's `path` and `embedded: false`.
  */
 import type { FileRef, ScriptContext } from '@bffless/workflow-script'
 import { strToU8, zipSync, type Zippable } from 'fflate'
 import { clockLabel } from './lib/clock'
-import { optionalFileRefs, optionalString, requireArray, requireFileRef, requireNumber, requireString } from './lib/inputs'
+import { inputError, optionalString, requireArray, requireFileRef, requireNumber, requireString } from './lib/inputs'
 
 const NAME = 'bundle'
 
@@ -27,9 +34,14 @@ const NAME = 'bundle'
 const CELL_HEIGHT = 1080
 /** `transcribe`'s `timed` groups words into 8-second lines (Studio's timedTranscript). */
 const BUCKET_SECONDS = 8
+/** D10: the most sheet bytes the zip will hold — the archive is assembled in Worker memory. */
+export const EMBED_CAP_BYTES = 150 * 1024 * 1024
 
 export interface ManifestSheet {
-  file: string
+  /** Zip-relative path when embedded; null when the sheet is listed only (D10). */
+  file: string | null
+  /** Uploads-relative path — `workflow_sign { runId, path }` yields a link to it. */
+  path: string
   cols: number | null
   times: number[]
 }
@@ -40,8 +52,9 @@ export interface Manifest {
   source: { name: string; path: string; spokenDuration: number; language: string | null }
   direction: string
   transcript: { words: 'transcript.json'; timed: 'transcript.md'; wordCount: number; bucketSeconds: typeof BUCKET_SECONDS }
+  embedded: boolean
   sheets: ManifestSheet[]
-  plan: { intervalSeconds: number; frames: number; cellHeight: typeof CELL_HEIGHT }
+  plan: { intervalSeconds: number; stills: number; sheets: number; cellHeight: typeof CELL_HEIGHT }
   warnings: string[]
 }
 
@@ -63,6 +76,41 @@ function optionalNullable<T>(_script: string, inputs: Record<string, unknown>, k
   return check(v)
 }
 
+const isRecord = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v)
+const isFileRef = (v: unknown): v is FileRef => isRecord(v) && typeof v.path === 'string' && v.path.length > 0
+
+/** One matrix leg's collected outputs, flattened in leg order; a null leg (skipped) contributes nothing. */
+function flattenLegs(inputs: Record<string, unknown>): { refs: FileRef[]; times: number[][]; cols: (number | null)[] } {
+  const legsOf = (key: string): unknown[] => {
+    const v = inputs[key]
+    if (v === null || v === undefined) return []
+    if (!Array.isArray(v)) throw inputError(NAME, key, 'must be a list (one entry per matrix leg) when present')
+    return v
+  }
+  const sheetLegs = legsOf('sheets')
+  const timeLegs = legsOf('times')
+  const colLegs = legsOf('cols')
+  const refs: FileRef[] = []
+  const times: number[][] = []
+  const cols: (number | null)[] = []
+  sheetLegs.forEach((leg, i) => {
+    if (leg === null || leg === undefined) return
+    if (!Array.isArray(leg) || !leg.every(isFileRef)) throw inputError(NAME, 'sheets', `leg ${i} must be a list of File refs`)
+    const legTimes = timeLegs[i]
+    if (!Array.isArray(legTimes) || !legTimes.every((row) => Array.isArray(row) && row.every((t) => typeof t === 'number'))) {
+      throw inputError(NAME, 'times', `leg ${i} must be a list of number lists`)
+    }
+    const legCols = Array.isArray(colLegs[i]) ? (colLegs[i] as unknown[]) : []
+    leg.forEach((ref, j) => {
+      refs.push(ref)
+      times.push((legTimes[j] as number[]) ?? [])
+      const c = legCols[j]
+      cols.push(typeof c === 'number' && c > 0 ? c : null)
+    })
+  })
+  return { refs, times, cols }
+}
+
 function transcriptMarkdown(source: FileRef, duration: number, direction: string, timed: string): string {
   const lines = [`# ${source.name} — ${clockLabel(duration)} spoken`, '']
   if (direction.trim()) {
@@ -73,9 +121,11 @@ function transcriptMarkdown(source: FileRef, duration: number, direction: string
 }
 
 function readme(manifest: Manifest): string {
-  const sheets = manifest.sheets.length
+  const sheets = manifest.sheets.length && manifest.embedded
     ? `- \`sheets/\` — ${manifest.sheets.length} contact sheet(s), row-major; each cell is one still with its clock (m:ss) burned bottom-left. \`manifest.json\` → \`sheets[].cols\` gives each sheet's column count and \`sheets[].times\` its seconds in cell order.`
-    : `- No sheets: ${manifest.warnings.join(' ')}`
+    : manifest.sheets.length && !manifest.embedded
+      ? `- \`sheets/\` — ${manifest.sheets.length} contact sheet(s) are **not embedded** (over the 150 MB cap). \`manifest.json\` → \`sheets[].path\` names each one; exchange a path for a link with \`workflow_sign { runId, path }\`. Cells are 3 per row, clock burned bottom-left.`
+      : `- No sheets: ${manifest.warnings.join(' ')}`
   return [
     `# Capture of ${manifest.source.name}`,
     '',
@@ -102,27 +152,25 @@ export default async function bundle(ctx: ScriptContext): Promise<Record<string,
     if (typeof v !== 'string') throw new Error(`${NAME}: \`language\` must be a string when present`)
     return v
   })
-  const sheets = optionalFileRefs(NAME, ctx.inputs, 'sheets')
-  const times = optionalNullable(NAME, ctx.inputs, 'times', (v) => {
-    if (!Array.isArray(v) || !v.every((row) => Array.isArray(row) && row.every((t) => typeof t === 'number'))) {
-      throw new Error(`${NAME}: \`times\` must be a list of number lists when present`)
-    }
-    return v as number[][]
-  }) ?? []
-  const cols = optionalNullable(NAME, ctx.inputs, 'cols', (v) => {
-    if (!Array.isArray(v)) throw new Error(`${NAME}: \`cols\` must be a list when present`)
-    return v.map((c) => (typeof c === 'number' && c > 0 ? c : null))
-  }) ?? []
+  const { refs: sheets, times, cols } = flattenLegs(ctx.inputs)
   const interval = requireNumber(NAME, ctx.inputs, 'interval')
 
+  const totalBytes = sheets.reduce((n, r) => n + (typeof r.size === 'number' ? r.size : 0), 0)
+  const embedded = totalBytes <= EMBED_CAP_BYTES
   const warnings: string[] = []
   if (sheets.length === 0) {
     warnings.push(NO_SHEETS)
     ctx.annotate({ level: 'warning', message: NO_SHEETS })
   }
+  if (!embedded) {
+    const msg = `${sheets.length} contact sheets (${Math.round(totalBytes / 1048576)} MB) are not embedded in the zip — the cap is 150 MB. Each is a run output: exchange manifest.sheets[].path for a link with workflow_sign.`
+    warnings.push(msg)
+    ctx.annotate({ level: 'warning', message: msg })
+  }
 
-  const manifestSheets: ManifestSheet[] = sheets.map((_ref, i) => ({
-    file: sheetFileName(i),
+  const manifestSheets: ManifestSheet[] = sheets.map((ref, i) => ({
+    file: embedded ? sheetFileName(i) : null,
+    path: ref.path,
     cols: cols[i] ?? null,
     times: times[i] ?? [],
   }))
@@ -133,8 +181,9 @@ export default async function bundle(ctx: ScriptContext): Promise<Record<string,
     source: { name: source.name, path: source.path, spokenDuration: duration, language },
     direction,
     transcript: { words: 'transcript.json', timed: 'transcript.md', wordCount: words.length, bucketSeconds: BUCKET_SECONDS },
+    embedded,
     sheets: manifestSheets,
-    plan: { intervalSeconds: interval, frames: manifestSheets.reduce((n, s) => n + s.times.length, 0), cellHeight: CELL_HEIGHT },
+    plan: { intervalSeconds: interval, stills: manifestSheets.reduce((n, s) => n + s.times.length, 0), sheets: manifestSheets.length, cellHeight: CELL_HEIGHT },
     warnings,
   }
 
@@ -147,14 +196,16 @@ export default async function bundle(ctx: ScriptContext): Promise<Record<string,
     'transcript.md': strToU8(transcript),
     'transcript.json': strToU8(JSON.stringify(words)),
   }
-  for (const [i, ref] of sheets.entries()) {
-    const res = await ctx.files.fetch(ref)
-    if (!res.ok) throw new Error(`${NAME}: could not fetch sheet ${ref.name} (${res.status})`)
-    entries[sheetFileName(i)] = [new Uint8Array(await res.arrayBuffer()), { level: 0 }]
+  if (embedded) {
+    for (const [i, ref] of sheets.entries()) {
+      const res = await ctx.files.fetch(ref)
+      if (!res.ok) throw new Error(`${NAME}: could not fetch sheet ${ref.name} (${res.status})`)
+      entries[sheetFileName(i)] = [new Uint8Array(await res.arrayBuffer()), { level: 0 }]
+    }
   }
 
   const bytes = zipSync(entries)
-  ctx.log(`${zipName(source)}: ${sheets.length} sheet(s), ${words.length} words, ${Math.round(bytes.byteLength / 1024)} KB`)
+  ctx.log(`${zipName(source)}: ${sheets.length} sheet(s)${embedded ? '' : ' (listed, not embedded)'}, ${words.length} words, ${Math.round(bytes.byteLength / 1024)} KB`)
 
   const zip = new File([bytes], zipName(source), { type: 'application/zip' })
   return { zip, manifest, transcript }

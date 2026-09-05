@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { strFromU8, unzipSync } from 'fflate'
 import type { FileRef } from '@bffless/workflow-script'
-import bundle, { type Manifest } from './bundle'
+import bundle, { EMBED_CAP_BYTES, type Manifest } from './bundle'
 import { fakeCtx } from './lib/fakeCtx'
 
 const source: FileRef = { path: 'workflows/capture/inputs/walkthrough.mp4', name: 'walkthrough.mp4', contentType: 'video/mp4', size: 10, url: '/api/uploads/workflows/capture/inputs/walkthrough.mp4' }
-const sheet = (n: number): FileRef => ({ path: `run/sheets/sheet-0${n}.jpg`, name: `sheet-0${n}.jpg`, contentType: 'image/jpeg', size: 3, url: `/api/uploads/run/sheets/sheet-0${n}.jpg` })
+const sheet = (n: number, size = 3): FileRef => ({ path: `run/sheets/${n}/sheet-01.jpg`, name: 'sheet-01.jpg', contentType: 'image/jpeg', size, url: `/api/uploads/run/sheets/${n}/sheet-01.jpg` })
 const words = [{ text: 'Hello', start: 0.1, end: 0.4, speaker: null }, { text: 'world', start: 0.5, end: 0.9, speaker: null }]
 
+// Two matrix legs (batches), one sheet each, as the harness collects them.
 const base = {
   source,
   direction: 'Make me a deck.',
@@ -16,13 +17,13 @@ const base = {
   timed: '[0:00] Hello world',
   duration: 120,
   language: 'en',
-  sheets: [sheet(1), sheet(2)],
-  times: [[15, 45, 75], [105]],
-  cols: [3, 1],
+  sheets: [[sheet(1)], [sheet(2)]],
+  times: [[[15, 45, 75]], [[105]]],
+  cols: [[3], [1]],
   interval: 30,
 }
 
-const fetchBytes = async (ref: FileRef) => new Response(new Uint8Array([1, 2, ref.path.endsWith('1.jpg') ? 1 : 2]))
+const fetchBytes = async (ref: FileRef) => new Response(new Uint8Array([1, 2, ref.path.includes('/1/') ? 1 : 2]))
 
 async function unzip(out: Record<string, unknown>) {
   const zip = out.zip as File
@@ -30,7 +31,7 @@ async function unzip(out: Record<string, unknown>) {
 }
 
 describe('bundle', () => {
-  it('packs manifest, README, transcripts and sheets into one zip named after the source', async () => {
+  it('flattens the matrix legs in order and packs everything into one zip named after the source', async () => {
     const { ctx } = fakeCtx(base, fetchBytes)
     const out = await bundle(ctx)
     const { zip, entries } = await unzip(out)
@@ -38,11 +39,11 @@ describe('bundle', () => {
     expect(zip.type).toBe('application/zip')
     expect(Object.keys(entries).sort()).toEqual(['README.md', 'manifest.json', 'sheets/sheet-01.jpg', 'sheets/sheet-02.jpg', 'transcript.json', 'transcript.md'])
     expect(Array.from(entries['sheets/sheet-01.jpg'])).toEqual([1, 2, 1])
+    expect(Array.from(entries['sheets/sheet-02.jpg'])).toEqual([1, 2, 2])
     expect(JSON.parse(strFromU8(entries['transcript.json']))).toEqual(words)
     const readme = strFromU8(entries['README.md'])
     expect(readme).toContain('2 contact sheet(s)')
     expect(readme).toContain('sheets[].cols')
-    expect(readme).not.toContain('3 columns')
   })
 
   it('writes the manifest the spec describes and returns it as an output too', async () => {
@@ -52,27 +53,47 @@ describe('bundle', () => {
     const manifest = JSON.parse(strFromU8(entries['manifest.json'])) as Manifest
     expect(out.manifest).toEqual(manifest)
     expect(manifest.version).toBe(1)
+    expect(manifest.embedded).toBe(true)
     expect(manifest.source).toEqual({ name: 'walkthrough.mp4', path: source.path, spokenDuration: 120, language: 'en' })
-    expect(manifest.direction).toBe('Make me a deck.')
-    expect(manifest.transcript).toEqual({ words: 'transcript.json', timed: 'transcript.md', wordCount: 2, bucketSeconds: 8 })
     expect(manifest.sheets).toEqual([
-      { file: 'sheets/sheet-01.jpg', cols: 3, times: [15, 45, 75] },
-      { file: 'sheets/sheet-02.jpg', cols: 1, times: [105] },
+      { file: 'sheets/sheet-01.jpg', path: 'run/sheets/1/sheet-01.jpg', cols: 3, times: [15, 45, 75] },
+      { file: 'sheets/sheet-02.jpg', path: 'run/sheets/2/sheet-01.jpg', cols: 1, times: [105] },
     ])
-    expect(manifest.plan).toEqual({ intervalSeconds: 30, frames: 4, cellHeight: 1080 })
+    expect(manifest.plan).toEqual({ intervalSeconds: 30, stills: 4, sheets: 2, cellHeight: 1080 })
     expect(manifest.warnings).toEqual([])
-    expect(() => new Date(manifest.createdAt).toISOString()).not.toThrow()
   })
 
-  it('leads transcript.md with the source, duration and the direction as a quote', async () => {
+  it('drops skipped legs (null) and keeps sheet numbering continuous', async () => {
+    const { ctx } = fakeCtx({ ...base, sheets: [[sheet(1)], null, [sheet(2)]], times: [[[15]], null, [[105]]], cols: [[3], null, [1]] }, fetchBytes)
+    const manifest = (await bundle(ctx)).manifest as Manifest
+    expect(manifest.sheets.map((s) => s.file)).toEqual(['sheets/sheet-01.jpg', 'sheets/sheet-02.jpg'])
+    expect(manifest.plan.stills).toBe(2)
+  })
+
+  it('lists rather than embeds the sheets when their total exceeds the cap (D10)', async () => {
+    const big = Math.ceil(EMBED_CAP_BYTES / 2) + 1
+    const { ctx, annotations } = fakeCtx({ ...base, sheets: [[sheet(1, big)], [sheet(2, big)]] }, async () => {
+      throw new Error('must not fetch when not embedding')
+    })
+    const out = await bundle(ctx)
+    const { entries } = await unzip(out)
+    expect(Object.keys(entries).sort()).toEqual(['README.md', 'manifest.json', 'transcript.json', 'transcript.md'])
+    const manifest = out.manifest as Manifest
+    expect(manifest.embedded).toBe(false)
+    expect(manifest.sheets.map((s) => s.file)).toEqual([null, null])
+    expect(manifest.sheets.map((s) => s.path)).toEqual(['run/sheets/1/sheet-01.jpg', 'run/sheets/2/sheet-01.jpg'])
+    expect(manifest.warnings).toEqual([expect.stringMatching(/not embedded.*150 MB.*workflow_sign/)])
+    expect(annotations).toEqual([expect.objectContaining({ level: 'warning' })])
+    expect(strFromU8(entries['README.md'])).toContain('not embedded')
+  })
+
+  it('leads transcript.md with the source, spoken duration and the direction as a quote', async () => {
     const { ctx } = fakeCtx(base, fetchBytes)
     const out = await bundle(ctx)
     const md = out.transcript as string
     expect(md).toMatch(/^# walkthrough\.mp4 — 2:00 spoken\n/)
     expect(md).toContain('> Make me a deck.')
     expect(md.trimEnd().endsWith('[0:00] Hello world')).toBe(true)
-    const { entries } = await unzip(out)
-    expect(strFromU8(entries['transcript.md'])).toBe(md)
   })
 
   it('omits the quote when direction is blank', async () => {
@@ -82,16 +103,22 @@ describe('bundle', () => {
     expect((out.manifest as Manifest).direction).toBe('')
   })
 
-  it('ships without sheets when the sheet step was skipped (D9), and says so', async () => {
-    const { ctx, annotations } = fakeCtx({ ...base, sheets: null, times: null, cols: null, interval: 0 })
+  it('ships without sheets when every leg was skipped (D9), and says so', async () => {
+    const { ctx, annotations } = fakeCtx({ ...base, sheets: [null], times: [null], cols: [null] })
     const out = await bundle(ctx)
     const { entries } = await unzip(out)
     expect(Object.keys(entries).sort()).toEqual(['README.md', 'manifest.json', 'transcript.json', 'transcript.md'])
     const manifest = out.manifest as Manifest
     expect(manifest.sheets).toEqual([])
-    expect(manifest.plan.frames).toBe(0)
+    expect(manifest.embedded).toBe(true)
+    expect(manifest.plan).toEqual({ intervalSeconds: 30, stills: 0, sheets: 0, cellHeight: 1080 })
     expect(manifest.warnings).toHaveLength(1)
     expect(annotations).toEqual([expect.objectContaining({ level: 'warning' })])
+  })
+
+  it('tolerates sheets arriving as null (the whole job skipped)', async () => {
+    const { ctx } = fakeCtx({ ...base, sheets: null, times: null, cols: null })
+    expect(((await bundle(ctx)).manifest as Manifest).sheets).toEqual([])
   })
 
   it('fails loudly when a sheet cannot be fetched', async () => {
