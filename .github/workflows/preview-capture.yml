@@ -1,0 +1,66 @@
+name: Preview capture
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+    paths:
+      - 'workflows/capture/**'
+      - '.github/workflows/preview-capture.yml'
+
+concurrency:
+  # Flow-style `{ group: preview-${{ ... }} }` is genuinely ambiguous YAML (a
+  # `{{` inside a flow mapping) — block style, as in preview-hello.yml.
+  group: preview-capture-${{ github.event.number }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20', cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      # The bundle must say which implementation it is (needs @bffless/workflow-lint >= 1.0.1).
+      - run: "pnpm --filter ./workflows/capture run stage --impl capture-pr-${{ github.event.number }} --name 'Capture (PR #${{ github.event.number }})'"
+      - uses: bffless/publish-workflow@v1
+        with:
+          alias: capture-pr-${{ github.event.number }}
+          name: "Capture (PR #${{ github.event.number }})"
+          description: 'Turn one screen recording into context for a later Claude session: a word-timed transcript, contact sheets with the clock burned in, and your direction — one zip, fetched through the harness MCP.'
+          repository: bffless/workflow
+          harness-alias: workflow
+          path: workflows/capture/dist
+          workflows: workflows/capture/.bffless/workflows
+          rules: workflows/capture/.bffless/proxy-rules/capture
+          api-url: ${{ vars.BFFLESS_URL }}
+          api-key: ${{ secrets.BFFLESS_API_KEY }}
+      - name: Assert the published bundle's impl matches the alias
+        env:
+          EXPECTED_IMPL: capture-pr-${{ github.event.number }}
+        run: |
+          node -e "
+            const fs = require('node:fs');
+            const idx = JSON.parse(fs.readFileSync('workflows/capture/dist/.bffless/workflows/index.json', 'utf8'));
+            const expected = process.env.EXPECTED_IMPL;
+            if (idx.impl !== expected) {
+              console.error('::error::published bundle impl ' + JSON.stringify(idx.impl) + ' != alias ' + JSON.stringify(expected));
+              process.exit(1);
+            }
+          "
+
+  teardown:
+    if: github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: bffless/publish-workflow@v1
+        with:
+          mode: teardown
+          alias: capture-pr-${{ github.event.number }}
+          repository: bffless/workflow
+          harness-alias: workflow
+          api-url: ${{ vars.BFFLESS_URL }}
+          api-key: ${{ secrets.BFFLESS_API_KEY }}
