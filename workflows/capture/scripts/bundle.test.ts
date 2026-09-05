@@ -40,6 +40,10 @@ describe('bundle', () => {
     expect(Object.keys(entries).sort()).toEqual(['README.md', 'manifest.json', 'sheets/sheet-01.jpg', 'sheets/sheet-02.jpg', 'transcript.json', 'transcript.md'])
     expect(Array.from(entries['sheets/sheet-01.jpg'])).toEqual([1, 2, 1])
     expect(JSON.parse(strFromU8(entries['transcript.json']))).toEqual(words)
+    const readme = strFromU8(entries['README.md'])
+    expect(readme).toContain('2 contact sheet(s)')
+    expect(readme).toContain('sheets[].cols')
+    expect(readme).not.toContain('3 columns')
   })
 
   it('writes the manifest the spec describes and returns it as an output too', async () => {

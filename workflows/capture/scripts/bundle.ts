@@ -74,7 +74,7 @@ function transcriptMarkdown(source: FileRef, duration: number, direction: string
 
 function readme(manifest: Manifest): string {
   const sheets = manifest.sheets.length
-    ? `- \`sheets/\` — ${manifest.sheets.length} contact sheet(s), ${manifest.sheets[0].cols ?? 3} columns, row-major; each cell is one still with its clock (m:ss) burned bottom-left. \`manifest.json\` → \`sheets[].times\` lists each sheet's seconds in cell order.`
+    ? `- \`sheets/\` — ${manifest.sheets.length} contact sheet(s), row-major; each cell is one still with its clock (m:ss) burned bottom-left. \`manifest.json\` → \`sheets[].cols\` gives each sheet's column count and \`sheets[].times\` its seconds in cell order.`
     : `- No sheets: ${manifest.warnings.join(' ')}`
   return [
     `# Capture of ${manifest.source.name}`,
