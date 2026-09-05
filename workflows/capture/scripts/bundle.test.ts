@@ -84,7 +84,21 @@ describe('bundle', () => {
     expect(manifest.sheets.map((s) => s.path)).toEqual(['run/sheets/1/sheet-01.jpg', 'run/sheets/2/sheet-01.jpg'])
     expect(manifest.warnings).toEqual([expect.stringMatching(/not embedded.*150 MB.*workflow_sign/)])
     expect(annotations).toEqual([expect.objectContaining({ level: 'warning' })])
-    expect(strFromU8(entries['README.md'])).toContain('not embedded')
+    const readme = strFromU8(entries['README.md'])
+    expect(readme).toContain('not embedded')
+    expect(readme).toContain('sheets[].cols')
+    expect(readme).not.toContain('3 per row')
+  })
+
+  it('never embeds when a sheet has no recorded size (fail safe on unknown size)', async () => {
+    const { ctx, annotations } = fakeCtx({ ...base, sheets: [[{ ...sheet(1), size: undefined as unknown as number }], [sheet(2)]] }, async () => {
+      throw new Error('must not fetch when not embedding')
+    })
+    const out = await bundle(ctx)
+    const manifest = out.manifest as Manifest
+    expect(manifest.embedded).toBe(false)
+    expect(manifest.warnings).toEqual([expect.stringMatching(/no recorded size.*150 MB cap cannot be checked/)])
+    expect(annotations).toEqual([expect.objectContaining({ level: 'warning' })])
   })
 
   it('leads transcript.md with the source, spoken duration and the direction as a quote', async () => {

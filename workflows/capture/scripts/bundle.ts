@@ -124,7 +124,7 @@ function readme(manifest: Manifest): string {
   const sheets = manifest.sheets.length && manifest.embedded
     ? `- \`sheets/\` — ${manifest.sheets.length} contact sheet(s), row-major; each cell is one still with its clock (m:ss) burned bottom-left. \`manifest.json\` → \`sheets[].cols\` gives each sheet's column count and \`sheets[].times\` its seconds in cell order.`
     : manifest.sheets.length && !manifest.embedded
-      ? `- \`sheets/\` — ${manifest.sheets.length} contact sheet(s) are **not embedded** (over the 150 MB cap). \`manifest.json\` → \`sheets[].path\` names each one; exchange a path for a link with \`workflow_sign { runId, path }\`. Cells are 3 per row, clock burned bottom-left.`
+      ? `- \`sheets/\` — ${manifest.sheets.length} contact sheet(s) are **not embedded** (over the 150 MB cap). \`manifest.json\` → \`sheets[].path\` names each one; exchange a path for a link with \`workflow_sign { runId, path }\`. \`sheets[].cols\` gives each sheet's column count and \`sheets[].times\` its seconds in cell order (row-major); the clock is burned bottom-left of every cell.`
       : `- No sheets: ${manifest.warnings.join(' ')}`
   return [
     `# Capture of ${manifest.source.name}`,
@@ -155,15 +155,18 @@ export default async function bundle(ctx: ScriptContext): Promise<Record<string,
   const { refs: sheets, times, cols } = flattenLegs(ctx.inputs)
   const interval = requireNumber(NAME, ctx.inputs, 'interval')
 
+  const hasUnknownSize = sheets.some((r) => typeof r.size !== 'number' || !Number.isFinite(r.size))
   const totalBytes = sheets.reduce((n, r) => n + (typeof r.size === 'number' ? r.size : 0), 0)
-  const embedded = totalBytes <= EMBED_CAP_BYTES
+  const embedded = !hasUnknownSize && totalBytes <= EMBED_CAP_BYTES
   const warnings: string[] = []
   if (sheets.length === 0) {
     warnings.push(NO_SHEETS)
     ctx.annotate({ level: 'warning', message: NO_SHEETS })
   }
   if (!embedded) {
-    const msg = `${sheets.length} contact sheets (${Math.round(totalBytes / 1048576)} MB) are not embedded in the zip — the cap is 150 MB. Each is a run output: exchange manifest.sheets[].path for a link with workflow_sign.`
+    const msg = hasUnknownSize
+      ? `${sheets.length} contact sheets are not embedded in the zip — at least one sheet has no recorded size, so the 150 MB cap cannot be checked. Each is a run output: exchange manifest.sheets[].path for a link with workflow_sign.`
+      : `${sheets.length} contact sheets (${Math.round(totalBytes / 1048576)} MB) are not embedded in the zip — the cap is 150 MB. Each is a run output: exchange manifest.sheets[].path for a link with workflow_sign.`
     warnings.push(msg)
     ctx.annotate({ level: 'warning', message: msg })
   }
