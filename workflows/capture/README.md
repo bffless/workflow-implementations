@@ -2,8 +2,9 @@
 
 A Workflow-harness implementation (`bffless/apps` → `apps/workflow`) that turns **one screen
 recording** into context a later Claude session can work from: the transcript with word
-timings, Studio-style contact sheets with the clock burned into every still, and the
-direction you typed at kickoff — packed into one `<recording>.capture.zip`.
+timings, contact sheets at the density you pick (one still every N seconds) with the clock
+burned into every still, and the direction you typed at kickoff — packed into one
+`<recording>.capture.zip`.
 
 It is a simplified Studio: Studio's first two jobs (audio → transcript, planned contact
 sheets), none of its AI or editing stages, a bundle at the end instead of a short. Design:
@@ -16,10 +17,24 @@ sheets), none of its AI or editing stages, a bundle at the end instead of a shor
 | `bundle` | file | `manifest.json`, `README.md`, `transcript.md`, `transcript.json`, `sheets/sheet-NN.jpg` |
 | `transcript` | markdown | 8-second `[m:ss]` lines, led by your direction as a quote |
 | `words` | json | WhisperX word timings `[{ text, start, end, speaker }]` |
-| `sheets` | file list | the contact sheets (3 columns, 1080-row cells, clock bottom-left) |
-| `manifest` | json | source, duration, language, direction, per-sheet timestamps |
+| `manifest` | json | source, duration, language, direction, `embedded`, per-sheet `path`/`cols`/`times`, `plan.intervalSeconds`/`stills` |
 
 A recording with no spoken audio still produces a bundle — with no sheets and a warning.
+
+## Density
+
+`interval` — **seconds between stills** — is a kickoff input (default `5`). One still every
+`interval` seconds of *speech* (the last spoken word's timestamp, not the file's length),
+12 stills per sheet, roughly 2.4 MB per sheet: a 20-minute recording is 1200 stills on 100
+sheets at `1`, and 40 stills on 4 sheets at `30`.
+
+The stills are grabbed in batches of at most 200 — CE's `frames` op caps a single request, not
+a recording — so the `sheets` job fans out over one matrix leg per batch (two at a time) and
+`bundle` stitches the legs back together in order.
+
+Past **150 MB** of sheets the zip lists them instead of embedding them: `manifest.embedded` is
+`false`, `sheets/` is absent, and every sheet's `manifest.sheets[].path` is exchanged for a
+short-lived link with `workflow_sign { runId, path }`. Each sheet is a run output either way.
 
 ## Reading a run from a Claude session
 
@@ -50,12 +65,12 @@ a planned follow-up (spec → Follow-ups).
 
 ## Layout
 
-- `.bffless/workflows/capture.workflow.yaml` — the contract: three jobs, `extract` → `sheets` → `bundle`.
+- `.bffless/workflows/capture.workflow.yaml` — the contract: four jobs, `extract` → `plan` → `sheets` (a matrix leg per batch) → `bundle`.
 - `.bffless/proxy-rules/capture/` — four rules copied from `workflow-studio` and renamed
   (`job/get`, `video/extract-audio`, `video/contact-sheet` at `height: 1080`, `transcribe`)
   over the `capture_jobs` schema.
 - `scripts/` — the two `script` steps (Worker, opaque origin, `ctx.files.fetch` only) and
-  `scripts/lib/` (Studio's pure `contactSheet.ts` planner, input guards, a test-only fake ctx).
+  `scripts/lib/` (the pure clock helpers kept from Studio, input guards, a test-only fake ctx).
 - `bffless/README.md` — the per-project setup the rule set does not carry.
 
 ## Deploy

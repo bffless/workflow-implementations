@@ -108,7 +108,7 @@ Job outputs collect per leg (spec 01: a matrix job's outputs are lists in matrix
 
 | Step | Kind | With | Outputs |
 | --- | --- | --- | --- |
-| `bundle` | script `scripts/bundle.js` | `source` (file ref), `direction`, `words`, `text`, `timed`, `duration`, `language`, `sheets` / `times` / `cols` (the per-leg lists above, flattened in order, null legs dropped), `interval` (`inputs.interval`), `stills` | `zip` (file), `manifest` (json), `transcript` (markdown) |
+| `bundle` | script `scripts/bundle.js` | `source` (file ref), `direction`, `words`, `text`, `timed`, `duration`, `language`, `sheets` / `times` / `cols` (the per-leg lists above, flattened in order, null legs dropped), `interval` (`inputs.interval`) | `zip` (file), `manifest` (json), `transcript` (markdown) |
 
 ### Run outputs
 
@@ -117,9 +117,11 @@ outputs:
   bundle:     ${{ jobs.bundle.outputs.zip }}         # the one thing to fetch
   transcript: ${{ jobs.bundle.outputs.transcript }}  # markdown, timed
   words:      ${{ jobs.extract.outputs.words }}      # render: transcript
-  sheets:     ${{ jobs.sheets.outputs.sheets }}      # render: images
   manifest:   ${{ jobs.bundle.outputs.manifest }}
 ```
+
+The per-leg `sheets` lists are not a run output (a list of lists does not render as images);
+the manifest carries every sheet's `path`.
 
 Every step is `pipeline` or `script`, so the workflow is headless-safe with no `headless:`
 declarations; `workflow_list` marks it so and an unattended `workflow_start` can complete it.

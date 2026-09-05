@@ -26,5 +26,5 @@ Schema `capture_jobs` carries no `id:`; the first publish creates it.
 | --- | --- | --- |
 | `job/get` | ✓ | schema id, wording |
 | `video/extract-audio/post` | ✓ | schema id |
-| `video/contact-sheet/post` | ✓ | schema id; `frames.height: 1080` (spec D5) |
+| `video/contact-sheet/post` | ✓ | schema id; `frames.height: 1080` (spec D5); called once per ≤200-still batch (CE `MAX_STILLS_PER_JOB`) |
 | `transcribe/post` | ✓ | schema id; `diarize` still accepted, the workflow sends `false` |
