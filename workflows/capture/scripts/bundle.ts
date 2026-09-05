@@ -37,7 +37,7 @@ export interface ManifestSheet {
 export interface Manifest {
   version: 1
   createdAt: string
-  source: { name: string; path: string; duration: number; language: string | null }
+  source: { name: string; path: string; spokenDuration: number; language: string | null }
   direction: string
   transcript: { words: 'transcript.json'; timed: 'transcript.md'; wordCount: number; bucketSeconds: typeof BUCKET_SECONDS }
   sheets: ManifestSheet[]
@@ -64,7 +64,7 @@ function optionalNullable<T>(_script: string, inputs: Record<string, unknown>, k
 }
 
 function transcriptMarkdown(source: FileRef, duration: number, direction: string, timed: string): string {
-  const lines = [`# ${source.name} — ${clockLabel(duration)}`, '']
+  const lines = [`# ${source.name} — ${clockLabel(duration)} spoken`, '']
   if (direction.trim()) {
     lines.push(...direction.trim().split('\n').map((l) => `> ${l}`), '')
   }
@@ -79,7 +79,7 @@ function readme(manifest: Manifest): string {
   return [
     `# Capture of ${manifest.source.name}`,
     '',
-    `A ${clockLabel(manifest.source.duration)} recording, captured ${manifest.createdAt} by the \`capture\` workflow.`,
+    `A recording with ${clockLabel(manifest.source.spokenDuration)} of speech (the last spoken word's timestamp — not the file's length), captured ${manifest.createdAt} by the \`capture\` workflow.`,
     '',
     `- \`manifest.json\` — what this is; start here.`,
     `- \`transcript.md\` — the spoken words in ${manifest.transcript.bucketSeconds}-second \`[m:ss]\` lines${manifest.direction ? ', led by the direction the person gave' : ''}.`,
@@ -130,7 +130,7 @@ export default async function bundle(ctx: ScriptContext): Promise<Record<string,
   const manifest: Manifest = {
     version: 1,
     createdAt: new Date().toISOString(),
-    source: { name: source.name, path: source.path, duration, language },
+    source: { name: source.name, path: source.path, spokenDuration: duration, language },
     direction,
     transcript: { words: 'transcript.json', timed: 'transcript.md', wordCount: words.length, bucketSeconds: BUCKET_SECONDS },
     sheets: manifestSheets,

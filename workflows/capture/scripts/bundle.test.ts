@@ -6,7 +6,7 @@ import { fakeCtx } from './lib/fakeCtx'
 
 const source: FileRef = { path: 'workflows/capture/inputs/walkthrough.mp4', name: 'walkthrough.mp4', contentType: 'video/mp4', size: 10, url: '/api/uploads/workflows/capture/inputs/walkthrough.mp4' }
 const sheet = (n: number): FileRef => ({ path: `run/sheets/sheet-0${n}.jpg`, name: `sheet-0${n}.jpg`, contentType: 'image/jpeg', size: 3, url: `/api/uploads/run/sheets/sheet-0${n}.jpg` })
-const words = [{ word: 'Hello', start: 0.1, end: 0.4 }, { word: 'world', start: 0.5, end: 0.9 }]
+const words = [{ text: 'Hello', start: 0.1, end: 0.4, speaker: null }, { text: 'world', start: 0.5, end: 0.9, speaker: null }]
 
 const base = {
   source,
@@ -52,7 +52,7 @@ describe('bundle', () => {
     const manifest = JSON.parse(strFromU8(entries['manifest.json'])) as Manifest
     expect(out.manifest).toEqual(manifest)
     expect(manifest.version).toBe(1)
-    expect(manifest.source).toEqual({ name: 'walkthrough.mp4', path: source.path, duration: 120, language: 'en' })
+    expect(manifest.source).toEqual({ name: 'walkthrough.mp4', path: source.path, spokenDuration: 120, language: 'en' })
     expect(manifest.direction).toBe('Make me a deck.')
     expect(manifest.transcript).toEqual({ words: 'transcript.json', timed: 'transcript.md', wordCount: 2, bucketSeconds: 8 })
     expect(manifest.sheets).toEqual([
@@ -68,7 +68,7 @@ describe('bundle', () => {
     const { ctx } = fakeCtx(base, fetchBytes)
     const out = await bundle(ctx)
     const md = out.transcript as string
-    expect(md).toMatch(/^# walkthrough\.mp4 — 2:00\n/)
+    expect(md).toMatch(/^# walkthrough\.mp4 — 2:00 spoken\n/)
     expect(md).toContain('> Make me a deck.')
     expect(md.trimEnd().endsWith('[0:00] Hello world')).toBe(true)
     const { entries } = await unzip(out)
@@ -78,7 +78,7 @@ describe('bundle', () => {
   it('omits the quote when direction is blank', async () => {
     const { ctx } = fakeCtx({ ...base, direction: null }, fetchBytes)
     const out = await bundle(ctx)
-    expect(out.transcript as string).not.toContain('>')
+    expect(out.transcript as string).not.toMatch(/^>/m)
     expect((out.manifest as Manifest).direction).toBe('')
   })
 

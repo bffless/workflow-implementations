@@ -15,7 +15,7 @@ sheets), none of its AI or editing stages, a bundle at the end instead of a shor
 | --- | --- | --- |
 | `bundle` | file | `manifest.json`, `README.md`, `transcript.md`, `transcript.json`, `sheets/sheet-NN.jpg` |
 | `transcript` | markdown | 8-second `[m:ss]` lines, led by your direction as a quote |
-| `words` | json | WhisperX word timings `[{ word, start, end }]` |
+| `words` | json | WhisperX word timings `[{ text, start, end, speaker }]` |
 | `sheets` | file list | the contact sheets (3 columns, 1080-row cells, clock bottom-left) |
 | `manifest` | json | source, duration, language, direction, per-sheet timestamps |
 

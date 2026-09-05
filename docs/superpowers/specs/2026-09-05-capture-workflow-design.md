@@ -57,8 +57,9 @@ workflows/capture/
 
 No `islands/`, no `.bffless/skills/`, no `vendor/`. The rules are copied files with every
 `workflow_studio_*` schema id rewritten to `capture_*` and the Studio wording in names and
-descriptions replaced; a `grep -r 'workflow_studio\|workflow-studio' workflows/capture` must come
-back empty, and CI's `check-identity` plus `rules validate` are the standing fence.
+descriptions replaced; no `workflow_studio_*` identifier or `workflow-studio` alias may be
+*referenced* under `workflows/capture/` (provenance comments naming the copy source are fine), and
+CI's `check-identity` plus `rules validate` are the standing fence.
 
 ## The workflow
 
@@ -131,7 +132,7 @@ sheets/sheet-01.jpg … sheet-NN.jpg
 {
   "version": 1,
   "createdAt": "2026-09-05T18:22:10Z",
-  "source": { "name": "walkthrough.mp4", "path": "<uploads-relative>", "duration": 1187.4, "language": "en" },
+  "source": { "name": "walkthrough.mp4", "path": "<uploads-relative>", "spokenDuration": 1187.4, "language": "en" },
   "direction": "I want a PowerPoint out of this …",
   "transcript": { "words": "transcript.json", "timed": "transcript.md", "wordCount": 2410, "bucketSeconds": 8 },
   "sheets": [
@@ -142,15 +143,19 @@ sheets/sheet-01.jpg … sheet-NN.jpg
 }
 ```
 
+`spokenDuration` is the last spoken word's end second (what `transcribe` reports as `duration`),
+not the file's length.
+
 `sheets[].times` is the same per-sheet chunking the `contact-sheet` rule returns (`result.times`,
 parallel to `paths`), so a reader can map "cell 5 on sheet 3" to a second without re-deriving the
 plan. An empty `sheets: []` plus `"warnings": ["no spoken audio …"]` is the D9 shape.
 
-**`transcript.md`** — a heading with the source name and duration, the direction as a block
-quote (omitted when empty), then Studio's `timed` text: one `[m:ss] …` line per 8-second bucket.
+**`transcript.md`** — a heading with the source name and the spoken duration, the direction as a
+block quote (omitted when empty), then Studio's `timed` text: one `[m:ss] …` line per 8-second
+bucket.
 
 **`transcript.json`** — WhisperX's `words` array as the `transcribe` rule flattened it:
-`[{ word, start, end }]`.
+`[{ text, start, end, speaker }]`.
 
 **`README.md`** — five lines: what the run was, what each file is, how to read a sheet (3 columns,
 row-major, clock burned bottom-left of each cell), and where the run lives
