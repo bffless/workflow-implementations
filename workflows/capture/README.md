@@ -14,7 +14,7 @@ sheets), none of its AI or editing stages, a bundle at the end instead of a shor
 
 | Output | Type | What |
 | --- | --- | --- |
-| `bundle` | file | `manifest.json`, `README.md`, `transcript.md`, `transcript.json`, `sheets/sheet-NN.jpg` |
+| `bundle` | file | `manifest.json`, `README.md`, `transcript.md`, `transcript.json`, `sheets/sheet-NN.jpg` (when embedded, ≤150 MB) |
 | `transcript` | markdown | 8-second `[m:ss]` lines, led by your direction as a quote |
 | `words` | json | WhisperX word timings `[{ text, start, end, speaker }]` |
 | `manifest` | json | source, duration, language, direction, `embedded`, per-sheet `path`/`cols`/`times`, `plan.intervalSeconds`/`stills` |
@@ -34,7 +34,8 @@ a recording — so the `sheets` job fans out over one matrix leg per batch (two 
 
 Past **150 MB** of sheets the zip lists them instead of embedding them: `manifest.embedded` is
 `false`, `sheets/` is absent, and every sheet's `manifest.sheets[].path` is exchanged for a
-short-lived link with `workflow_sign { runId, path }`. Each sheet is a run output either way.
+short-lived link with `workflow_sign { runId, path }`. The sheets themselves stay on the
+`sheets` job's step cards either way.
 
 ## Reading a run from a Claude session
 
@@ -45,7 +46,8 @@ The harness's MCP server exposes runs to any connected Claude session:
    (`/api/uploads/…`) and private to the project, so from outside the harness page exchange its
    `path` for a short-lived presigned link with `workflow_sign { runId, path }` and fetch that.
 3. Fetch and unzip it; read `manifest.json` first, then `transcript.md`; open `sheets/*.jpg`
-   as images. `manifest.sheets[].times` maps each cell (row-major) to a second.
+   as images (or, past the cap, sign each `manifest.sheets[].path`).
+   `manifest.sheets[].times` maps each cell (row-major) to a second.
 
 Want a share link? Upload the zip to a Handoff deployment with the `handoff-api` skill
 (`prepare → PUT → register` into a folder of your choosing). Publishing it from inside the run is

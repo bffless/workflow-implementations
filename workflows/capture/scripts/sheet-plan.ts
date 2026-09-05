@@ -77,7 +77,7 @@ export default async function sheetPlan(ctx: ScriptContext): Promise<Record<stri
     const mb = Math.round(sheets * SHEET_MB_ESTIMATE)
     ctx.annotate({
       level: 'warning',
-      message: `${stills} stills every ${interval} s on ${sheets} sheets — about ${mb} MB of contact sheets. Past 150 MB the bundle zip lists the sheets instead of containing them; each is still a run output.`,
+      message: `${stills} stills every ${interval} s on ${sheets} sheets — about ${mb} MB of contact sheets. Past 150 MB the bundle zip lists the sheets instead of containing them; each sheet's path is in manifest.sheets[].path.`,
     })
   }
 

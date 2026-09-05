@@ -165,8 +165,8 @@ export default async function bundle(ctx: ScriptContext): Promise<Record<string,
   }
   if (!embedded) {
     const msg = hasUnknownSize
-      ? `${sheets.length} contact sheets are not embedded in the zip — at least one sheet has no recorded size, so the 150 MB cap cannot be checked. Each is a run output: exchange manifest.sheets[].path for a link with workflow_sign.`
-      : `${sheets.length} contact sheets (${Math.round(totalBytes / 1048576)} MB) are not embedded in the zip — the cap is 150 MB. Each is a run output: exchange manifest.sheets[].path for a link with workflow_sign.`
+      ? `${sheets.length} contact sheets are not embedded in the zip — at least one sheet has no recorded size, so the 150 MB cap cannot be checked. Each sheet's path is in manifest.sheets[].path: exchange one for a link with workflow_sign.`
+      : `${sheets.length} contact sheets (${Math.round(totalBytes / 1048576)} MB) are not embedded in the zip — the cap is 150 MB. Each sheet's path is in manifest.sheets[].path: exchange one for a link with workflow_sign.`
     warnings.push(msg)
     ctx.annotate({ level: 'warning', message: msg })
   }
