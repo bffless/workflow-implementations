@@ -2,7 +2,7 @@
  * `sheet-plan` — `sheets` → step `plan`.
  *
  *   with:    { duration }
- *   outputs: { times, labels, interval, perSheet }
+ *   outputs: { times, labels, interval, per_sheet }
  *
  * Studio's clip-wide contact-sheet plan for ONE recording (D4, D6): sample no finer than
  * 5 s and no coarser than 30 s, at most 120 frames, tiled into at most 10 sheets. `times`
@@ -29,10 +29,10 @@ export default async function sheetPlan(ctx: ScriptContext): Promise<Record<stri
       message:
         'No spoken audio was heard, so there is no duration to plan contact sheets from. The bundle will carry the transcript (if any) and no sheets.',
     })
-    return { times: [], labels: [], interval: 0, perSheet: 0 }
+    return { times: [], labels: [], interval: 0, per_sheet: 0 }
   }
 
   const labels = plan.times.map((t) => clockLabel(t))
   ctx.log(`${plan.times.length} frames every ~${Math.round(plan.interval)} s, ${plan.perSheet} per sheet`)
-  return { times: plan.times, labels, interval: plan.interval, perSheet: plan.perSheet }
+  return { times: plan.times, labels, interval: plan.interval, per_sheet: plan.perSheet }
 }
