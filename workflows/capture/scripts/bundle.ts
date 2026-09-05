@@ -18,7 +18,7 @@
  */
 import type { FileRef, ScriptContext } from '@bffless/workflow-script'
 import { strToU8, zipSync, type Zippable } from 'fflate'
-import { clockLabel } from './lib/contactSheet'
+import { clockLabel } from './lib/clock'
 import { optionalFileRefs, optionalString, requireArray, requireFileRef, requireNumber, requireString } from './lib/inputs'
 
 const NAME = 'bundle'
