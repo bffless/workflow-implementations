@@ -1,0 +1,24 @@
+{
+  /* `script` steps run inside a Web Worker on an opaque origin (harness spec 03/09): no DOM,
+     no window, no Node. `WebWorker` gives `self`/`fetch`/`Blob`/`File`; `"types": []` keeps
+     `process`/`Buffer`/`node:*` out. `scripts/build.test.ts` reads `node:fs` through a
+     computed specifier for exactly this reason. */
+  "compilerOptions": {
+    "target": "es2023",
+    "lib": ["ES2023", "WebWorker"],
+    "module": "esnext",
+    "types": [],
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "verbatimModuleSyntax": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "erasableSyntaxOnly": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": ["scripts"]
+}
