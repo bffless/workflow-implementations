@@ -1,0 +1,2 @@
+name: capture
+description: "Backend of the capture workflow: the async job poll and the three Studio-derived pipelines it needs — video/extract-audio and video/contact-sheet (CE ffmpeg ops, enqueued) and transcribe (WhisperX on Replicate, word timings). No AI stages: the bundle is for a later Claude session to read."
