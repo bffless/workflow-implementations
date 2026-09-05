@@ -1,0 +1,32 @@
+{
+  "name": "capture",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "lint": "eslint .",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "typecheck": "tsc -p tsconfig.scripts.json && tsc -p tsconfig.node.json",
+    "build": "node scripts/stage.mjs",
+    "stage": "node scripts/stage.mjs",
+    "rules:validate": "bffless rules validate .bffless/proxy-rules/capture",
+    "rules:test": "bffless rules test .bffless/proxy-rules/capture"
+  },
+  "dependencies": {
+    "fflate": "^0.8.3"
+  },
+  "devDependencies": {
+    "@bffless/workflow-lint": "^1.5.1",
+    "@bffless/workflow-script": "^1.0.0",
+    "@eslint/js": "^10.0.1",
+    "@types/node": "^24.12.3",
+    "bffless": "^0.3.3",
+    "eslint": "^10.3.0",
+    "globals": "^17.6.0",
+    "typescript": "~6.0.2",
+    "typescript-eslint": "^8.59.2",
+    "vite": "^8.0.12",
+    "vitest": "^4.1.7"
+  }
+}

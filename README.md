@@ -16,7 +16,7 @@ package.json            # private root; scripts: <impl>:lint/stage/build/test, r
   deploy-<impl>.yml     # publish-workflow@v1 → alias <impl> on push to main
   preview-<impl>.yml    # <impl>-pr-<n> previews + teardown on PR close
 workflows/
-  <impl>/               # one directory per implementation (hello, workflow-studio, …)
+  <impl>/               # one directory per implementation (hello, workflow-studio, capture, …)
     .bffless/workflow.json  # identity: { "alias": "<impl>", "harness": "workflow" }
 ```
 

@@ -1,0 +1,126 @@
+name: Deploy capture
+
+# Publishes workflows/capture/ to the harness project as the `capture` implementation (lint +
+# index the workflow, sync the rule set under /api/capture/, upload the bundle to the alias,
+# attach the set to the harness alias — all inside `bffless/publish-workflow@v1`), first to the
+# j5s harness (canary), then to workflow.bffless.dev. Same shape as deploy-workflow-studio.yml.
+
+on:
+  workflow_dispatch: {}
+  push:
+    branches: [main]
+    paths:
+      - 'workflows/capture/**'
+      - '.github/workflows/deploy-capture.yml'
+
+concurrency: { group: deploy-capture, cancel-in-progress: false }
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20', cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+
+      # Type-check, build scripts/{sheet-plan,bundle}.ts into dist/scripts/, and write
+      # dist/.bffless/workflows/index.json (`workflow index` comes from the published
+      # @bffless/workflow-lint — no workspace build step here, unlike bffless/apps).
+      - run: pnpm --filter ./workflows/capture run stage
+
+      # No `target-url`: since v1.2.0 the harness forwards /w/capture/* to this alias
+      # IN-PROCESS on the CE backend, so the implementation needs no domain of its own (see
+      # workflows/capture/bffless/README.md, which points to workflow-studio/bffless/README.md's
+      # "Domain is OPTIONAL" for the shared mechanism). The action re-runs `workflow index`
+      # over the same `path`, which rewrites the index.json the stage step wrote — with the
+      # commit SHA filled in.
+      - uses: bffless/publish-workflow@v1
+        with:
+          alias: capture
+          name: Capture
+          # Kept in step with `DESCRIPTION` in workflows/capture/scripts/stage.mjs by hand —
+          # nothing enforces it. THIS value is the one that ships: the action re-runs
+          # `workflow index` over the staged bundle and overwrites the stager's.
+          description: 'Turn one screen recording into context for a later Claude session: a word-timed transcript, contact sheets with the clock burned in, and your direction — one zip, fetched through the harness MCP.'
+          repository: bffless/workflow
+          api-url: ${{ vars.BFFLESS_URL }}
+          api-key: ${{ secrets.BFFLESS_API_KEY }}
+          path: workflows/capture/dist
+          workflows: workflows/capture/.bffless/workflows
+          rules: workflows/capture/.bffless/proxy-rules/capture
+
+      # A green publish doesn't prove the right bundle was published — assert it
+      # (needs @bffless/workflow-lint >= 1.0.1; the same guard deploy-hello.yml carries).
+      - name: Assert the published bundle's impl matches the alias
+        env:
+          EXPECTED_IMPL: capture
+        run: |
+          node -e "
+            const fs = require('node:fs');
+            const idx = JSON.parse(fs.readFileSync('workflows/capture/dist/.bffless/workflows/index.json', 'utf8'));
+            const expected = process.env.EXPECTED_IMPL;
+            if (idx.impl !== expected) {
+              console.error('::error::published bundle impl ' + JSON.stringify(idx.impl) + ' != alias ' + JSON.stringify(expected));
+              process.exit(1);
+            }
+          "
+
+  publish-bffless-dev:
+    # Second target (2026-09-01): the same bundle, published to the bffless.dev harness
+    # install (project bffless/workflow on admin.bffless.dev, workflow.bffless.dev).
+    # j5s stays the dev/canary target: this job only runs after `publish` succeeds.
+    needs: publish
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20', cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+
+      # Type-check, build scripts/{sheet-plan,bundle}.ts into dist/scripts/, and write
+      # dist/.bffless/workflows/index.json (`workflow index` comes from the published
+      # @bffless/workflow-lint — no workspace build step here, unlike bffless/apps).
+      - run: pnpm --filter ./workflows/capture run stage
+
+      # No `target-url`: since v1.2.0 the harness forwards /w/capture/* to this alias
+      # IN-PROCESS on the CE backend, so the implementation needs no domain of its own (see
+      # workflows/capture/bffless/README.md, which points to workflow-studio/bffless/README.md's
+      # "Domain is OPTIONAL" for the shared mechanism). The action re-runs `workflow index`
+      # over the same `path`, which rewrites the index.json the stage step wrote — with the
+      # commit SHA filled in.
+      - uses: bffless/publish-workflow@v1
+        with:
+          alias: capture
+          name: Capture
+          # Kept in step with `DESCRIPTION` in workflows/capture/scripts/stage.mjs by hand —
+          # nothing enforces it. THIS value is the one that ships: the action re-runs
+          # `workflow index` over the staged bundle and overwrites the stager's.
+          description: 'Turn one screen recording into context for a later Claude session: a word-timed transcript, contact sheets with the clock burned in, and your direction — one zip, fetched through the harness MCP.'
+          repository: bffless/workflow
+          api-url: ${{ vars.BFFLESS_DEV_URL }}
+          api-key: ${{ secrets.BFFLESS_DEV_API_KEY }}
+          path: workflows/capture/dist
+          workflows: workflows/capture/.bffless/workflows
+          rules: workflows/capture/.bffless/proxy-rules/capture
+
+      # A green publish doesn't prove the right bundle was published — assert it
+      # (needs @bffless/workflow-lint >= 1.0.1; the same guard deploy-hello.yml carries).
+      - name: Assert the published bundle's impl matches the alias
+        env:
+          EXPECTED_IMPL: capture
+        run: |
+          node -e "
+            const fs = require('node:fs');
+            const idx = JSON.parse(fs.readFileSync('workflows/capture/dist/.bffless/workflows/index.json', 'utf8'));
+            const expected = process.env.EXPECTED_IMPL;
+            if (idx.impl !== expected) {
+              console.error('::error::published bundle impl ' + JSON.stringify(idx.impl) + ' != alias ' + JSON.stringify(expected));
+              process.exit(1);
+            }
+          "

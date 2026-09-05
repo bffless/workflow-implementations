@@ -1,0 +1,201 @@
+spec: 1
+name: Capture a recording for Claude
+description: >
+  Turn one screen recording into context a later Claude session can work from: the transcript
+  with word timings, contact sheets with the clock burned into every still, and your own
+  direction text — packed into one zip you fetch through the harness MCP.
+
+on:
+  manual:
+    inputs:
+      recording: { type: file, accept: "video/*", required: true, maxSize: 5GB, label: Recording }
+      direction:
+        type: string
+        format: textarea
+        label: Direction
+        description: "What you want done with this recording, in your own words. Carried into the bundle verbatim for the Claude session that reads it."
+      # WhisperX's `language`, pinned by default (same reasoning as Studio: a wrong auto-detect
+      # loses every word timing). The list is exactly the languages WhisperX can align.
+      language:
+        type: choice
+        default: en
+        label: Spoken language
+        description: "Pick it rather than auto-detect when you can: a wrong guess loses every word timing, and the run stops."
+        options:
+          - { value: auto, label: "Auto-detect (may guess wrong)" }
+          - { value: en, label: English }
+          - { value: es, label: Spanish }
+          - { value: fr, label: French }
+          - { value: de, label: German }
+          - { value: it, label: Italian }
+          - { value: pt, label: Portuguese }
+          - { value: nl, label: Dutch }
+          - { value: sv, label: Swedish }
+          - { value: da, label: Danish }
+          - { value: no, label: Norwegian }
+          - { value: fi, label: Finnish }
+          - { value: pl, label: Polish }
+          - { value: cs, label: Czech }
+          - { value: hu, label: Hungarian }
+          - { value: el, label: Greek }
+          - { value: tr, label: Turkish }
+          - { value: ru, label: Russian }
+          - { value: uk, label: Ukrainian }
+          - { value: ja, label: Japanese }
+          - { value: zh, label: Chinese }
+          - { value: ko, label: Korean }
+          - { value: vi, label: Vietnamese }
+          - { value: ar, label: Arabic }
+          - { value: he, label: Hebrew }
+          - { value: hi, label: Hindi }
+          - { value: ur, label: Urdu }
+          - { value: fa, label: Persian }
+          - { value: ca, label: Catalan }
+          - { value: eu, label: Basque }
+          - { value: gl, label: Galician }
+          - { value: te, label: Telugu }
+          - { value: ml, label: Malayalam }
+          - { value: ka, label: Georgian }
+          - { value: lv, label: Latvian }
+          - { value: sk, label: Slovak }
+          - { value: sl, label: Slovenian }
+          - { value: hr, label: Croatian }
+          - { value: ro, label: Romanian }
+          - { value: bg, label: Bulgarian }
+          - { value: nn, label: Norwegian Nynorsk }
+          - { value: tl, label: Tagalog }
+      interval:
+        type: number
+        default: 5
+        min: 0.5
+        step: 0.5
+        label: Seconds between stills
+        description: "One still every N seconds of speech, 12 stills per sheet, about 2.4 MB per sheet. A 20-minute recording at 1 s is 1200 stills on about 100 sheets; at 30 s it is 40 stills on 4 sheets. Past 150 MB of sheets the zip lists them instead of containing them (each sheet's path stays in the manifest)."
+
+outputs:
+  bundle:     ${{ jobs.bundle.outputs.zip }}
+  transcript: ${{ jobs.bundle.outputs.transcript }}
+  words:      ${{ jobs.extract.outputs.words }}
+  manifest:   ${{ jobs.bundle.outputs.manifest }}
+
+jobs:
+  extract:
+    name: Audio and transcript
+    steps:
+      - id: audio
+        name: Pull the audio out
+        uses: pipeline
+        with:
+          path: video/extract-audio
+          # No `executor`: the instance's configured default executor runs (Admin → Features → Executor).
+          body: { source: "${{ inputs.recording.path }}", outPrefix: "${{ step.prefix }}" }
+        poll: { path: job, query: { id: "${{ response.jobId }}" }, until: "${{ response.status == 'done' }}", fail: "${{ response.status == 'error' }}", every: 3s, timeout: 20m }
+        retry: { max: 3, delay: 10s, if: "${{ error.code == 'FFMPEG_BUSY' }}" }
+        outputs:
+          wav: { type: file, value: "${{ response.result.path }}" }
+      - id: transcribe
+        name: Write the transcript
+        uses: pipeline
+        with: { path: transcribe, body: { audio: "${{ steps.audio.outputs.wav.path }}", diarize: false, language: "${{ inputs.language }}" } }
+        poll: { path: job, query: { id: "${{ response.jobId }}" }, until: "${{ response.status == 'done' }}", fail: "${{ response.status == 'error' }}", every: 5s, timeout: 30m }
+        outputs:
+          words:    { type: json, value: "${{ response.result.words }}", render: transcript }
+          text:     { type: string, value: "${{ response.result.text }}" }
+          timed:    { type: string, value: "${{ response.result.timed }}" }
+          duration: { type: number, value: "${{ response.result.duration }}", format: seconds }
+          language: { type: string, value: "${{ response.result.language }}" }
+        summary: "Transcribed **${{ inputs.recording.name }}** (${{ steps.transcribe.outputs.language }}) — ${{ length(steps.transcribe.outputs.words) }} words."
+        annotations:
+          - { level: warning, if: "${{ length(steps.transcribe.outputs.words) < 50 }}", message: "Very short transcript — is the audio silent?" }
+    outputs:
+      source:   { type: file, value: "${{ inputs.recording }}" }
+      wav:      ${{ steps.audio.outputs.wav }}
+      words:    ${{ steps.transcribe.outputs.words }}
+      text:     ${{ steps.transcribe.outputs.text }}
+      timed:    ${{ steps.transcribe.outputs.timed }}
+      duration: ${{ steps.transcribe.outputs.duration }}
+      language: ${{ steps.transcribe.outputs.language }}
+
+  plan:
+    name: Plan the stills
+    needs: extract
+    steps:
+      - id: plan
+        name: Plan the stills
+        uses: script
+        with:
+          src: scripts/sheet-plan.js
+          duration: ${{ needs.extract.outputs.duration }}
+          interval: ${{ inputs.interval }}
+        outputs:
+          batches: { type: json }
+          stills:  { type: number }
+          sheets:  { type: number }
+        summary: "${{ steps.plan.outputs.stills }} stills every ${{ inputs.interval }} s → ${{ steps.plan.outputs.sheets }} sheet(s) in ${{ length(steps.plan.outputs.batches) }} batch(es)."
+    outputs:
+      batches: ${{ steps.plan.outputs.batches }}
+      stills:  ${{ steps.plan.outputs.stills }}
+      sheets:  ${{ steps.plan.outputs.sheets }}
+
+  # One leg per ≤200-still batch (CE's `frames` op ceiling is per request, not per
+  # recording). Outputs collect per leg into lists of lists (spec 01); `bundle` flattens
+  # them in leg order. An empty batch (no spoken audio, D9) is skipped and contributes null.
+  sheets:
+    name: Grab the stills
+    needs: plan
+    strategy: { matrix: { batch: "${{ needs.plan.outputs.batches }}" }, max-parallel: 2 }
+    steps:
+      - id: sheets
+        name: Grab the stills
+        uses: pipeline
+        if: "${{ length(matrix.batch.times) > 0 }}"
+        with:
+          path: video/contact-sheet
+          body: { source: "${{ inputs.recording.path }}", outPrefix: "${{ step.prefix }}", times: "${{ matrix.batch.times }}", labels: "${{ matrix.batch.labels }}" }
+        poll: { path: job, query: { id: "${{ response.jobId }}" }, until: "${{ response.status == 'done' }}", fail: "${{ response.status == 'error' }}", every: 3s, timeout: 20m }
+        retry: { max: 3, delay: 10s, if: "${{ error.code == 'FFMPEG_BUSY' }}" }
+        outputs:
+          sheets: { type: file, list: true, value: "${{ response.result.paths }}", render: images }
+          times:  { type: json, value: "${{ response.result.times }}" }
+          cols:   { type: json, value: "${{ response.result.cols }}" }
+        summary: "${{ length(steps.sheets.outputs.sheets) }} contact sheet(s) from ${{ length(matrix.batch.times) }} stills."
+    outputs:
+      sheets: ${{ steps.sheets.outputs.sheets }}
+      times:  ${{ steps.sheets.outputs.times }}
+      cols:   ${{ steps.sheets.outputs.cols }}
+
+  bundle:
+    name: Pack the bundle
+    needs: [extract, sheets]
+    # D9: on a recording with no spoken audio every `sheets` leg is `if:`-skipped, so the
+    # whole job resolves to `skipped` — and a job's default gate is success() over its needs,
+    # which would skip this job too and finish the run with nothing in it. Admit a skipped
+    # capture (the bundle then carries the transcript and a warning); a FAILED capture stays
+    # fatal, so `bundle`'s "no spoken audio" warning is never a lie.
+    if: "${{ needs.extract.result == 'success' && needs.sheets.result != 'failure' }}"
+    steps:
+      - id: bundle
+        name: Pack the bundle
+        uses: script
+        with:
+          src: scripts/bundle.js
+          source:    ${{ needs.extract.outputs.source }}
+          direction: ${{ inputs.direction }}
+          words:     ${{ needs.extract.outputs.words }}
+          text:      ${{ needs.extract.outputs.text }}
+          timed:     ${{ needs.extract.outputs.timed }}
+          duration:  ${{ needs.extract.outputs.duration }}
+          language:  ${{ needs.extract.outputs.language }}
+          sheets:    ${{ needs.sheets.outputs.sheets }}
+          times:     ${{ needs.sheets.outputs.times }}
+          cols:      ${{ needs.sheets.outputs.cols }}
+          interval:  ${{ inputs.interval }}
+        outputs:
+          zip:        { type: file }
+          manifest:   { type: json }
+          transcript: { type: markdown }
+        summary: "Bundle ready: **${{ steps.bundle.outputs.zip.name }}** (${{ steps.bundle.outputs.manifest.plan.stills }} stills on ${{ length(steps.bundle.outputs.manifest.sheets) }} sheets, ${{ steps.bundle.outputs.manifest.transcript.wordCount }} words)."
+    outputs:
+      zip:        ${{ steps.bundle.outputs.zip }}
+      manifest:   ${{ steps.bundle.outputs.manifest }}
+      transcript: ${{ steps.bundle.outputs.transcript }}
