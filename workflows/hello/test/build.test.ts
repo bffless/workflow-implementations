@@ -33,10 +33,19 @@ describe('scripts/build.mjs', () => {
 
       const index = JSON.parse(readFileSync(join(outDir, '.bffless/workflows/index.json'), 'utf8'))
       expect(index.impl).toBe('hello')
-      expect(index.workflows).toHaveLength(2)
+      expect(index.workflows).toHaveLength(3)
       // The payoff of `headless: auto` / `headless: { mode: skip, ... }`: a
-      // workflow with no interactive step that would fail fast headless.
-      expect(index.workflows.every((w: { headlessSafe: boolean }) => w.headlessSafe)).toBe(true)
+      // workflow with no interactive step that would fail fast headless —
+      // except `driven`, whose one undeclared form is the point (bffless/apps
+      // ADR-0006): a driven run PARKS on it, so it must read not-headless-safe.
+      const safeByFile = Object.fromEntries(
+        index.workflows.map((w: { file: string; headlessSafe: boolean }) => [w.file, w.headlessSafe]),
+      )
+      expect(safeByFile).toEqual({
+        'driven.workflow.yaml': false,
+        'hello.workflow.yaml': true,
+        'interactive.workflow.yaml': true,
+      })
 
       const islandFiles = ['pick-line.html', 'line-viewer.html']
       for (const file of islandFiles) {

@@ -20,7 +20,7 @@ jobs:
         with: { node-version: '20', cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter ./workflows/hello run build
-      - uses: bffless/publish-workflow@v1
+      - uses: bffless/publish-workflow@v2
         with:
           alias: hello
           name: Hello
@@ -30,6 +30,9 @@ jobs:
           path: workflows/hello/dist
           workflows: workflows/hello/.bffless/workflows
           rules: workflows/hello/.bffless/proxy-rules/hello
+          # index.json's driver.repo (bffless/apps ADR-0006): the harness dispatches this
+          # repo's workflow-drive.yml to drive hello's runs headless. publish-workflow >= v2.1.
+          driver-repo: ${{ github.repository }}
           api-url: ${{ vars.BFFLESS_URL }}
           api-key: ${{ secrets.BFFLESS_API_KEY }}
       # A green build doesn't prove the right bundle was published — assert it (needs @bffless/workflow-lint >= 1.0.1).

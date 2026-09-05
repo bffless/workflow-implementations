@@ -1,0 +1,61 @@
+# The driven-runs proof (bffless/apps ADR-0006, spec 07 §Driven runs): one form that
+# declares no `headless:` between two `echo` pipelines. Started over the MCP endpoint,
+# the dispatched driver runs `greet`, PARKS on `ask` (the lint's `interactive-headless`
+# notice is the point), and a second dispatched job finishes `finish` after a person
+# answers in claude.ai. `pnpm workflow-live:walk driven` in bffless/apps drives it.
+
+spec: 1
+name: Driven hello
+description: One undeclared form between two echo pipelines — the run parks on it.
+
+on:
+  manual:
+    inputs:
+      greeting: { type: string, default: "Hello", required: true, label: Greeting }
+
+jobs:
+  greet:
+    name: Say the greeting
+    steps:
+      - id: echo
+        uses: pipeline
+        with:
+          path: echo
+          body: { text: "${{ inputs.greeting }}" }
+        outputs:
+          text: { type: string, value: "${{ response.text }}" }
+    outputs:
+      text: ${{ steps.echo.outputs.text }}
+
+  ask:
+    name: A person answers
+    needs: greet
+    steps:
+      - id: answer
+        uses: form
+        with:
+          title: A person answers
+          description: "The driver parked here. Add a note and continue."
+          fields:
+            note: { type: string, required: true, label: Note }
+          submit: Continue
+    outputs:
+      note: ${{ steps.answer.outputs.note }}
+
+  finish:
+    name: Echo both back
+    needs: [greet, ask]
+    steps:
+      - id: echo
+        uses: pipeline
+        with:
+          path: echo
+          body: { text: "${{ needs.greet.outputs.text }} — ${{ needs.ask.outputs.note }}" }
+        outputs:
+          text: { type: string, value: "${{ response.text }}" }
+        summary: "Finished with **${{ steps.echo.outputs.text }}**"
+    outputs:
+      text: ${{ steps.echo.outputs.text }}
+
+outputs:
+  text: ${{ jobs.finish.outputs.text }}
