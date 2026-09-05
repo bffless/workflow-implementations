@@ -12,7 +12,6 @@ describe('sheet-plan', () => {
     expect(labels).toHaveLength(120)
     expect(labels[0]).toBe('0:05')
     expect(out.interval).toBe(10)
-    expect(out.per_sheet).toBe(12)
   })
 
   it('returns an empty plan and warns, rather than throwing, when there is no duration (D9)', async () => {
@@ -21,7 +20,6 @@ describe('sheet-plan', () => {
     expect(out.times).toEqual([])
     expect(out.labels).toEqual([])
     expect(out.interval).toBe(0)
-    expect(out.per_sheet).toBe(0)
     expect(annotations).toEqual([expect.objectContaining({ level: 'warning' })])
   })
 

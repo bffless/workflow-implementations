@@ -2,7 +2,7 @@
  * `bundle` — `bundle` → step `bundle`.
  *
  *   with:    { source, direction, words, text, timed, duration, language,
- *              sheets, times, cols, interval, perSheet }
+ *              sheets, times, cols, interval }
  *   outputs: { zip, manifest, transcript }
  *
  * The deliverable (D1): one archive a later Claude session fetches through the harness MCP
@@ -114,7 +114,6 @@ export default async function bundle(ctx: ScriptContext): Promise<Record<string,
     return v.map((c) => (typeof c === 'number' && c > 0 ? c : null))
   }) ?? []
   const interval = requireNumber(NAME, ctx.inputs, 'interval')
-  requireNumber(NAME, ctx.inputs, 'perSheet')
 
   const warnings: string[] = []
   if (sheets.length === 0) {

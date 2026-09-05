@@ -20,7 +20,6 @@ const base = {
   times: [[15, 45, 75], [105]],
   cols: [3, 1],
   interval: 30,
-  perSheet: 3,
 }
 
 const fetchBytes = async (ref: FileRef) => new Response(new Uint8Array([1, 2, ref.path.endsWith('1.jpg') ? 1 : 2]))
@@ -84,7 +83,7 @@ describe('bundle', () => {
   })
 
   it('ships without sheets when the sheet step was skipped (D9), and says so', async () => {
-    const { ctx, annotations } = fakeCtx({ ...base, sheets: null, times: null, cols: null, interval: 0, perSheet: 0 })
+    const { ctx, annotations } = fakeCtx({ ...base, sheets: null, times: null, cols: null, interval: 0 })
     const out = await bundle(ctx)
     const { entries } = await unzip(out)
     expect(Object.keys(entries).sort()).toEqual(['README.md', 'manifest.json', 'transcript.json', 'transcript.md'])

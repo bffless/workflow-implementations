@@ -120,15 +120,10 @@ jobs:
         with:
           src: scripts/sheet-plan.js
           duration: ${{ needs.extract.outputs.duration }}
-        # Output NAMES are identifiers the schema pins to `^[a-z][a-z0-9_-]*$`, so this one is
-        # `per_sheet` and `sheet-plan.js` returns that key (every declared output must be
-        # present in the return value). `with:` keys are not so constrained — `bundle` below
-        # still hands it to `bundle.js` as `perSheet`, the name that script reads.
         outputs:
           times:     { type: json }
           labels:    { type: json }
           interval:  { type: number, format: seconds }
-          per_sheet: { type: number }
       - id: sheets
         name: Grab the stills
         uses: pipeline
@@ -150,7 +145,6 @@ jobs:
       times:     ${{ steps.sheets.outputs.times }}
       cols:      ${{ steps.sheets.outputs.cols }}
       interval:  ${{ steps.plan.outputs.interval }}
-      per_sheet: ${{ steps.plan.outputs.per_sheet }}
 
   bundle:
     name: Pack the bundle
@@ -172,7 +166,6 @@ jobs:
           times:     ${{ needs.sheets.outputs.times }}
           cols:      ${{ needs.sheets.outputs.cols }}
           interval:  ${{ needs.sheets.outputs.interval }}
-          perSheet:  ${{ needs.sheets.outputs.per_sheet }}
         outputs:
           zip:        { type: file }
           manifest:   { type: json }

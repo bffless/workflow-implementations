@@ -18,7 +18,7 @@ Before the first live run on an instance, check both: MCP `list_secrets` for
 `bffless/workflow` lists `HF_TOKEN`, and a Studio run has succeeded there. The ffmpeg ops use
 the instance's default executor (Admin → Features → Executor) exactly as Studio's do.
 
-Schemas `capture_jobs` and `capture_uploads` carry no `id:`; the first publish creates them.
+Schema `capture_jobs` carries no `id:`; the first publish creates it.
 
 ## Rules
 

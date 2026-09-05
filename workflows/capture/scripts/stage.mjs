@@ -236,6 +236,21 @@ try {
     { cwd: appDir, stdio: 'inherit' },
   )
 
+  // `workflow index`'s linter only checks a `src:` value's extension, and index.json only
+  // lists whatever this stager actually staged above — neither one notices a step naming a
+  // module that was never built, so that would otherwise publish green and fail at run time.
+  const stagedWorkflowsDir = join(out, '.bffless', 'workflows')
+  for (const yamlName of readdirSync(stagedWorkflowsDir).filter((f) => f.endsWith('.workflow.yaml'))) {
+    const yamlPath = join(stagedWorkflowsDir, yamlName)
+    const contents = readFileSync(yamlPath, 'utf8')
+    for (const match of contents.matchAll(/^\s*src:\s*["']?([^\s"']+)/gm)) {
+      const src = match[1]
+      if (!existsSync(join(out, src))) {
+        throw new Error(`stage.mjs: ${yamlName} names ${src} but the bundle has no such file`)
+      }
+    }
+  }
+
   console.log('staged', out)
 } finally {
   if (checkOnly) rmSync(out, { recursive: true, force: true })

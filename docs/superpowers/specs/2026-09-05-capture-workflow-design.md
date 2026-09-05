@@ -38,7 +38,6 @@ workflows/capture/
     proxy-rules/capture/
       ruleset.yaml
       schemas/capture_jobs.schema.yaml
-      schemas/capture_uploads.schema.yaml
       rules/job/get/…                 ← copied from workflow-studio
       rules/video/extract-audio/post/…
       rules/video/contact-sheet/post/…
@@ -175,8 +174,8 @@ noted:
 | `transcribe/post` | schema id only. `diarize` stays supported by the rule, unused by the workflow. |
 
 `ruleset.yaml` describes the set as Capture's backend. Both `.fn.test.yaml` suites travel with the
-rules and must pass under `bffless rules test`. Schemas `capture_jobs` and `capture_uploads` carry
-no `id:` so the publish creates them fresh in whichever project the set lands in.
+rules and must pass under `bffless rules test`. Schema `capture_jobs` carries no `id:` so the
+publish creates it fresh in whichever project the set lands in.
 
 **Project setup (both instances):** nothing new. `transcribe` needs the `HF_TOKEN` secret and the
 Replicate provider token on `bffless/workflow`, which Studio already put there on j5s and on

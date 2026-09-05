@@ -51,7 +51,7 @@ a planned follow-up (spec → Follow-ups).
 - `.bffless/workflows/capture.workflow.yaml` — the contract: three jobs, `extract` → `sheets` → `bundle`.
 - `.bffless/proxy-rules/capture/` — four rules copied from `workflow-studio` and renamed
   (`job/get`, `video/extract-audio`, `video/contact-sheet` at `height: 1080`, `transcribe`)
-  over schemas `capture_jobs` / `capture_uploads`.
+  over the `capture_jobs` schema.
 - `scripts/` — the two `script` steps (Worker, opaque origin, `ctx.files.fetch` only) and
   `scripts/lib/` (Studio's pure `contactSheet.ts` planner, input guards, a test-only fake ctx).
 - `bffless/README.md` — the per-project setup the rule set does not carry.
