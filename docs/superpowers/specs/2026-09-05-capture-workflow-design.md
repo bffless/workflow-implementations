@@ -27,7 +27,7 @@ none of its AI or editing stages, and a bundle at the end instead of a short.
 | D7 | Alias `capture`, permanent. | Names `/api/capture/…`, `/w/capture/…`, the rule set and the deploy alias. |
 | D8 | Deploy to both harnesses: j5s (`admin.j5s.dev`) first, then `workflow.bffless.dev`. | Same two-job shape as `deploy-workflow-studio.yml`; j5s stays the canary. |
 | D9 | No spoken audio does **not** fail the run. | Unlike Studio (whose director needs a plan), a bundle with a transcript-less manifest and no sheets is still useful; the run warns instead. |
-| D10 | The zip **embeds the sheets only while their total size is ≤ 150 MB** (`EMBED_CAP_BYTES`, a constant). Above it the zip carries manifest, README and transcripts; the manifest lists every sheet's `path`, `embedded: false`, and a warning says to fetch them with `workflow_sign`. | The zip is built inside the browser Worker's memory (a `script` step has no other way to make a file); 100 sheets ≈ 240 MB plus the zip copy would crash the tab. The sheets are individual run outputs regardless. |
+| D10 | The zip **embeds the sheets only while their total size is ≤ 150 MB** (`EMBED_CAP_BYTES`, a constant). Above it the zip carries manifest, README and transcripts; the manifest lists every sheet's `path`, `embedded: false`, and a warning says to fetch them with `workflow_sign`. | The zip is built inside the browser Worker's memory (a `script` step has no other way to make a file); 100 sheets ≈ 240 MB plus the zip copy would crash the tab. Every sheet stays on its `sheets` leg's step card and its `path` is in `manifest.sheets[].path` regardless. |
 | D11 | Density warnings: the `plan` step raises a `warning` annotation whenever the plan exceeds 120 stills, naming stills, sheets and the estimated bytes (≈2.4 MB per full sheet), and the `interval` field's description carries the arithmetic. A live pre-Start warning needs a harness feature (bffless/apps issue filed). | The person only learns the cost after Start today; both channels available now are used. |
 
 ## Package layout
@@ -102,7 +102,7 @@ Job outputs: `batches`, `stills`, `sheets`.
 | --- | --- | --- | --- |
 | `sheets` | pipeline `video/contact-sheet` + poll, `if: length(matrix.batch.times) > 0` | `{ source, outPrefix, times: matrix.batch.times, labels: matrix.batch.labels }`; the rule's `frames` op carries `height: 1080` (D5), `tile.perSheet: 12`, `tile.columns: 3`. | `sheets` (file list, `render: images`), `times` (json), `cols` (json) |
 
-Job outputs collect per leg (spec 01: a matrix job's outputs are lists in matrix order, a list-typed output becomes a list of lists): `sheets: FileRef[][]`, `times: number[][][]`, `cols: (number|null)[][]`; a skipped leg contributes `null`, which `bundle` tolerates.
+Job outputs collect per leg (spec 01: a matrix job's outputs are lists in matrix order, a list-typed output becomes a list of lists): `sheets: FileRef[][]`, `times: number[][][]`, `cols: (number|null)[][]`; when every leg is skipped (D9) the job itself resolves to `skipped` and `needs.sheets.outputs` is `null` outright — `bundle` tolerates both `null` and a `null` leg, and its job-level `if:` admits a skipped (not failed) `sheets`.
 
 **`bundle`** — needs `[extract, sheets]`.
 
@@ -160,7 +160,7 @@ sheets/sheet-01.jpg … sheet-NN.jpg
 `embedded` is D10: `true` when every sheet is inside the zip under `sheets[].file`; `false` when their
 total exceeded 150 MB, in which case `sheets[].file` is `null`, `sheets[].path` is the way to them
 (`workflow_sign { runId, path }`), and `warnings` says so. `plan.intervalSeconds` is the kickoff
-input; `plan.stills` the planned count across every batch.
+input; `plan.stills` the stills the delivered sheets actually carry (equal to the plan when the run completes).
 
 `spokenDuration` is the last spoken word's end second (what `transcribe` reports as `duration`),
 not the file's length.

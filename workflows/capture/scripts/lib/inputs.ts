@@ -41,13 +41,6 @@ export function requireArray(script: string, inputs: Record<string, unknown>, ke
   return v
 }
 
-export function requireNumbers(script: string, inputs: Record<string, unknown>, key: string): number[] {
-  return requireArray(script, inputs, key).map((v) => {
-    if (typeof v !== 'number' || !Number.isFinite(v)) throw inputError(script, key, 'must be a list of finite numbers')
-    return v
-  })
-}
-
 const isFileRef = (v: unknown): v is FileRef => isRecord(v) && typeof v.path === 'string' && v.path.length > 0
 
 /** One harness File ref (`{ path, name, contentType, size, url }`). */
@@ -55,19 +48,4 @@ export function requireFileRef(script: string, inputs: Record<string, unknown>, 
   const v = inputs[key]
   if (!isFileRef(v)) throw inputError(script, key, 'must be a File ref')
   return v
-}
-
-export function requireFileRefs(script: string, inputs: Record<string, unknown>, key: string): FileRef[] {
-  return requireArray(script, inputs, key).map((v) => {
-    if (!isFileRef(v)) throw inputError(script, key, 'must be a list of File refs')
-    return v
-  })
-}
-
-/** A list of File refs, or `[]` when the input is null/undefined — the outputs of an
- *  `if:`-skipped step arrive as null (D9: no sheets is not a failure). */
-export function optionalFileRefs(script: string, inputs: Record<string, unknown>, key: string): FileRef[] {
-  const v = inputs[key]
-  if (v === null || v === undefined) return []
-  return requireFileRefs(script, inputs, key)
 }

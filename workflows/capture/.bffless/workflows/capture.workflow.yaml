@@ -167,6 +167,12 @@ jobs:
   bundle:
     name: Pack the bundle
     needs: [extract, sheets]
+    # D9: on a recording with no spoken audio every `sheets` leg is `if:`-skipped, so the
+    # whole job resolves to `skipped` — and a job's default gate is success() over its needs,
+    # which would skip this job too and finish the run with nothing in it. Admit a skipped
+    # capture (the bundle then carries the transcript and a warning); a FAILED capture stays
+    # fatal, so `bundle`'s "no spoken audio" warning is never a lie.
+    if: "${{ needs.extract.result == 'success' && needs.sheets.result != 'failure' }}"
     steps:
       - id: bundle
         name: Pack the bundle
