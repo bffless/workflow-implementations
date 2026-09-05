@@ -26,7 +26,9 @@ A recording with no spoken audio still produces a bundle — with no sheets and 
 The harness's MCP server exposes runs to any connected Claude session:
 
 1. `workflow_runs { impl: "capture", status: "succeeded" }` — pick the run.
-2. `workflow_outputs { runId }` — the `bundle` File ref carries a fetchable `url`.
+2. `workflow_outputs { runId }` — the `bundle` File ref carries a `url`. It is host-relative
+   (`/api/uploads/…`) and private to the project, so from outside the harness page exchange its
+   `path` for a short-lived presigned link with `workflow_sign { runId, path }` and fetch that.
 3. Fetch and unzip it; read `manifest.json` first, then `transcript.md`; open `sheets/*.jpg`
    as images. `manifest.sheets[].times` maps each cell (row-major) to a second.
 
