@@ -25,7 +25,7 @@ jobs:
     steps:
       - uses: actions/setup-node@v4
         with: { node-version: '20' }
-      - run: npm install -g @bffless/workflow-headless@^1.2
+      - run: npm install -g @bffless/workflow-headless@^1.3
       - run: npx --yes playwright@1.61 install chromium --with-deps
       # Through the environment, never interpolated into `run:` — a JSON body is shell source otherwise.
       - name: Write the kickoff inputs
@@ -38,12 +38,11 @@ jobs:
           RUN_ID: ${{ github.event.client_payload.run_id }}
           HARNESS_URL: ${{ github.event.client_payload.harness_url }}
           TARGET: ${{ github.event.client_payload.workflow }}
-          # The member the harness relays a login for (required today; apps#588 will let the
-          # app token alone sign in). Repo secrets, never dispatch payload.
-          WORKFLOW_EMAIL: ${{ secrets.WORKFLOW_EMAIL }}
-          WORKFLOW_PASSWORD: ${{ secrets.WORKFLOW_PASSWORD }}
-          # An app token (Settings → App Tokens on the harness's admin; spec 10 D23) — sent as
-          # Bearer on every /api/workflow/* call the driver makes; optional until apps#588.
+          # The one secret (bffless/apps#588, CE ≥ 0.4.50): an app token for the member the
+          # job runs as (Settings → App Tokens on the harness's admin), minted with the scopes
+          # workflow:read workflow:run workflow:files auth:session. The driver exchanges it
+          # for a session at the admin origin and sends it as Bearer on every /api/workflow/*
+          # call. A repo secret, never dispatch payload. No email/password needed.
           WORKFLOW_APP_TOKEN: ${{ secrets.WORKFLOW_APP_TOKEN }}
         run: |
           if [ "$MODE" = "run" ]; then
