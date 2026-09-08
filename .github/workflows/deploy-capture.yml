@@ -2,7 +2,7 @@ name: Deploy capture
 
 # Publishes workflows/capture/ to the harness project as the `capture` implementation (lint +
 # index the workflow, sync the rule set under /api/capture/, upload the bundle to the alias,
-# attach the set to the harness alias — all inside `bffless/publish-workflow@v1`), first to the
+# attach the set to the harness alias — all inside `bffless/publish-workflow@v2`), first to the
 # j5s harness (canary), then to workflow.bffless.dev. Same shape as deploy-workflow-studio.yml.
 
 on:
@@ -39,10 +39,15 @@ jobs:
       # "Domain is OPTIONAL" for the shared mechanism). The action re-runs `workflow index`
       # over the same `path`, which rewrites the index.json the stage step wrote — with the
       # commit SHA filled in.
-      - uses: bffless/publish-workflow@v1
+      # publish-workflow >= v2.1 writes index.json's `driver.repo` (default: this repo), which is
+      # what lets the harness `repository_dispatch` workflow-drive.yml to drive capture headless —
+      # how a `workflow.start` over the MCP endpoint runs (bffless/apps ADR-0006). v1 never wrote
+      # it, so capture answered NO_DRIVER until 2026-09-08.
+      - uses: bffless/publish-workflow@v2
         with:
           alias: capture
           name: Capture
+          harness-alias: workflow
           # Kept in step with `DESCRIPTION` in workflows/capture/scripts/stage.mjs by hand —
           # nothing enforces it. THIS value is the one that ships: the action re-runs
           # `workflow index` over the staged bundle and overwrites the stager's.
@@ -94,10 +99,15 @@ jobs:
       # "Domain is OPTIONAL" for the shared mechanism). The action re-runs `workflow index`
       # over the same `path`, which rewrites the index.json the stage step wrote — with the
       # commit SHA filled in.
-      - uses: bffless/publish-workflow@v1
+      # publish-workflow >= v2.1 writes index.json's `driver.repo` (default: this repo), which is
+      # what lets the harness `repository_dispatch` workflow-drive.yml to drive capture headless —
+      # how a `workflow.start` over the MCP endpoint runs (bffless/apps ADR-0006). v1 never wrote
+      # it, so capture answered NO_DRIVER until 2026-09-08.
+      - uses: bffless/publish-workflow@v2
         with:
           alias: capture
           name: Capture
+          harness-alias: workflow
           # Kept in step with `DESCRIPTION` in workflows/capture/scripts/stage.mjs by hand —
           # nothing enforces it. THIS value is the one that ships: the action re-runs
           # `workflow index` over the staged bundle and overwrites the stager's.
