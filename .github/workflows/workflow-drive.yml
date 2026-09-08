@@ -38,13 +38,26 @@ jobs:
           RUN_ID: ${{ github.event.client_payload.run_id }}
           HARNESS_URL: ${{ github.event.client_payload.harness_url }}
           TARGET: ${{ github.event.client_payload.workflow }}
-          # The one secret (bffless/apps#588, CE ≥ 0.4.50): an app token for the member the
-          # job runs as (Settings → App Tokens on the harness's admin), minted with the scopes
-          # workflow:read workflow:run workflow:files auth:session. The driver exchanges it
-          # for a session at the admin origin and sends it as Bearer on every /api/workflow/*
-          # call. A repo secret, never dispatch payload. No email/password needed.
+          # The one secret PER HARNESS (bffless/apps#588, CE ≥ 0.4.50): an app token for the
+          # member the job runs as (Settings → App Tokens on the harness's admin), minted with
+          # the scopes workflow:read workflow:run workflow:files auth:session. The driver
+          # exchanges it for a session at the admin origin and sends it as Bearer on every
+          # /api/workflow/* call. Repo secrets, never dispatch payload. No email/password.
+          # An app token is bound to ONE instance, and this repo is dispatched by two harnesses
+          # (deploy-*.yml publish to j5s and to workflow.bffless.dev), so the `run:` below picks
+          # by `harness_url`:
+          #   WORKFLOW_APP_TOKEN              — workflow.j5s.dev (admin.j5s.dev, project bffless/workflow)
+          #   WORKFLOW_APP_TOKEN_BFFLESS_DEV  — workflow.bffless.dev (admin.bffless.dev, project bffless/workflow)
+          # A missing per-harness token leaves WORKFLOW_APP_TOKEN empty and the driver refuses
+          # to start (exit 2, no login) rather than driving with the wrong identity.
           WORKFLOW_APP_TOKEN: ${{ secrets.WORKFLOW_APP_TOKEN }}
+          WORKFLOW_APP_TOKEN_BFFLESS_DEV: ${{ secrets.WORKFLOW_APP_TOKEN_BFFLESS_DEV }}
         run: |
+          case "$HARNESS_URL" in
+            https://workflow.bffless.dev|https://workflow.bffless.dev/*)
+              export WORKFLOW_APP_TOKEN="$WORKFLOW_APP_TOKEN_BFFLESS_DEV" ;;
+          esac
+          unset WORKFLOW_APP_TOKEN_BFFLESS_DEV
           if [ "$MODE" = "run" ]; then
             workflow-headless run "$HARNESS_URL" "$TARGET" --inputs inputs.json --run-id "$RUN_ID" --wait park --out output --timeout 60m
           else
