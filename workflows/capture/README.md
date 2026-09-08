@@ -40,7 +40,7 @@ short-lived link with `workflow_sign { runId, path }`. The sheets themselves sta
 ## Running and reading a capture from a Claude session
 
 Any Claude session connected to the harness MCP can run a capture **from a URL** and read the
-result — the `capture-recording` skill in [`bffless/skills`](https://github.com/bffless/skills)
+result — the `capture-recording` skill in [`bffless/apps`](https://github.com/bffless/apps/tree/main/plugins/bffless-apps/skills/capture-recording) (`npx skills add bffless/apps --skill capture-recording`)
 is the written-down version of this loop:
 
 1. `workflow_start { impl: "capture", workflow: "capture", inputs: { recording: "<https:// URL>", direction: "…" } }`
