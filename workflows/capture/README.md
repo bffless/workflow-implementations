@@ -37,17 +37,24 @@ Past **150 MB** of sheets the zip lists them instead of embedding them: `manifes
 short-lived link with `workflow_sign { runId, path }`. The sheets themselves stay on the
 `sheets` job's step cards either way.
 
-## Reading a run from a Claude session
+## Running and reading a capture from a Claude session
 
-The harness's MCP server exposes runs to any connected Claude session:
+Any Claude session connected to the harness MCP can run a capture **from a URL** and read the
+result — the `capture-recording` skill in [`bffless/skills`](https://github.com/bffless/skills)
+is the written-down version of this loop:
 
-1. `workflow_runs { impl: "capture", status: "succeeded" }` — pick the run.
-2. `workflow_outputs { runId }` — the `bundle` File ref carries a `url`. It is host-relative
-   (`/api/uploads/…`) and private to the project, so from outside the harness page exchange its
-   `path` for a short-lived presigned link with `workflow_sign { runId, path }` and fetch that.
-3. Fetch and unzip it; read `manifest.json` first, then `transcript.md`; open `sheets/*.jpg`
-   as images (or, past the cap, sign each `manifest.sheets[].path`).
-   `manifest.sheets[].times` maps each cell (row-major) to a second.
+1. `workflow_start { impl: "capture", workflow: "capture", inputs: { recording: "<https:// URL>", direction: "…" } }`
+   — over the MCP endpoint a `file` input takes an `https://` URL; the dispatched driver
+   downloads it into the project's bucket and registers it (`@bffless/workflow-headless` ≥ 1.4).
+   Keep the `runId` it answers.
+2. `workflow_status { runId }` until `succeeded` (the row appears after the Actions cold start,
+   ~1–2 minutes).
+3. `workflow_outputs { runId }` — the `bundle` File ref's `url` is host-relative
+   (`/api/uploads/…`) and private to the project, so exchange its `path` for a short-lived
+   presigned link with `workflow_sign { runId, path }` and fetch that.
+4. Unzip; read `manifest.json` first, then `transcript.md`; open `sheets/*.jpg` as images (or,
+   past the cap, sign each `manifest.sheets[].path`). `manifest.sheets[].times` maps each cell
+   (row-major) to a second.
 
 Want a share link? Upload the zip to a Handoff deployment with the `handoff-api` skill
 (`prepare → PUT → register` into a folder of your choosing). Publishing it from inside the run is
