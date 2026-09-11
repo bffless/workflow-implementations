@@ -69,6 +69,10 @@ jobs:
           # A missing per-harness token leaves WORKFLOW_APP_TOKEN empty and the driver refuses
           # to start (exit 2, no login) rather than driving with the wrong identity.
           WORKFLOW_APP_TOKEN: ${{ secrets.WORKFLOW_APP_TOKEN }}
+          # The run's drive nonce (spec 11, D28): the harness claims the run for the requester at
+          # run/drive and the driver presents this on every request the driven page makes.
+          # Empty on a payload without one — the driver then installs no header.
+          WORKFLOW_DRIVE_KEY: ${{ github.event.client_payload.drive_key }}
           WORKFLOW_APP_TOKEN_BFFLESS_DEV: ${{ secrets.WORKFLOW_APP_TOKEN_BFFLESS_DEV }}
         run: |
           case "$HARNESS_URL" in
